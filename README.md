@@ -1,6 +1,10 @@
 # Torrpeddo
 
+![Torrpeddo Banner](assets/banner.png)
+
 An experimental, single-user torrent client built with Python and Flask.
+
+![Dashboard Screenshot](assets/screenshot.png)
 
 ## Features
 
