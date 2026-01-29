@@ -23,6 +23,27 @@ The frontend is built with **Vanilla CSS** and **HTML5**, running in the Electro
 - **Glassmorphism**: Backdrop blur effects on cards.
 - **IPC Communication**: The dashboard communicates with the backend via asynchronous IPC commands instead of HTTP.
 
+## Packaging for Windows (Portable EXE)
+
+To create a single standalone `.exe` for Windows, follow these steps on a **Windows machine**:
+
+1. **Bundle the Python Backend**:
+   Run the PowerShell script to create `bridge.exe`:
+   ```powershell
+   ./build-python.ps1
+   ```
+   This generates `backend/dist/bridge.exe` containing all Python dependencies.
+
+2. **Build the Electron App**:
+   Install Node dependencies and run the distribution command:
+   ```bash
+   npm install
+   npm run dist
+   ```
+
+3. **Output**:
+   The standalone, portable executable will be generated in the `dist/` directory (e.g., `Torrpeddo 1.0.0.exe`). This file can be shared and executed directly without installation or having Python installed on the target machine.
+
 ## Configuration
 
 Downloads are saved to `~/Downloads/Torrpeddo-Downloads` by default. This can be changed in the UI "Destination" section.

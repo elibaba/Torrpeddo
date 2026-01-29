@@ -43,11 +43,30 @@ function createWindow() {
  * We use an IPC (Inter-Process Communication) bridge over standard I/O.
  */
 function startPython() {
-    // Launch the bridge script using PythonShell
-    pythonProcess = new PythonShell('backend/bridge.py', {
-        mode: 'json',
-        pythonOptions: ['-u'], // -u ensures unbuffered output for real-time communication
-    });
+    let pythonPath;
+    let scriptPath;
+
+    // Check if the app is packaged (production) or running in development
+    if (app.isPackaged) {
+        // In production, we assume the Python bridge has been bundled 
+        // into a standalone executable using PyInstaller.
+        // On Windows, this would be 'bridge.exe' located in the resources folder.
+        scriptPath = path.join(process.resourcesPath, 'bin', process.platform === 'win32' ? 'bridge.exe' : 'bridge');
+        
+        // When using a bundled executable, we don't need 'python' command, 
+        // but python-shell expects a script. We use an empty pythonPath and point scriptPath to dev/null
+        // or just use execFile. For simplicity with python-shell:
+        pythonProcess = new PythonShell(scriptPath, {
+            mode: 'json',
+            pythonOptions: [], 
+        });
+    } else {
+        // In development, run the source script using the local python3 interpreter
+        pythonProcess = new PythonShell('backend/bridge.py', {
+            mode: 'json',
+            pythonOptions: ['-u'], // -u ensures unbuffered output for real-time communication
+        });
+    }
 
     // Listen for JSON messages from Python and forward them to the UI
     pythonProcess.on('message', (message) => {
