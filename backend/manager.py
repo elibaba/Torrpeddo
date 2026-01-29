@@ -34,8 +34,8 @@ class TorrentManager:
         # Dictionary to store torrent handles, keyed by info_hash
         self.downloads = {}
         
-        # Default download directory in the user's home folder
-        self.download_dir = os.path.expanduser("~/Downloads/Torrpeddo-Downloads")
+        # Default download directory: Use the folder from which the application was launched
+        self.download_dir = os.path.abspath(os.getcwd())
         if not os.path.exists(self.download_dir):
             os.makedirs(self.download_dir)
             
@@ -85,10 +85,12 @@ class TorrentManager:
                 state_str = "Paused"
 
             # Check if files still exist on disk
+            # Only check if metadata is acquired and some progress has been made (to avoid premature error)
             try:
-                full_path = os.path.join(s.save_path, s.name)
-                if not os.path.exists(full_path):
-                    state_str = "Error: Missing Files"
+                if s.has_metadata and s.progress > 0:
+                    full_path = os.path.join(s.save_path, s.name)
+                    if not os.path.exists(full_path):
+                        state_str = "Error: Missing Files"
             except Exception:
                 pass
 
