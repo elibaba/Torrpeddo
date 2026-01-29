@@ -10,6 +10,9 @@ const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 const { PythonShell } = require('python-shell');
 
+// Disable hardware acceleration to prevent GPU initialization errors on some Linux environments
+app.disableHardwareAcceleration();
+
 let mainWindow;     // Reference to the main UI window
 let pythonProcess;  // Reference to the background Python process
 
