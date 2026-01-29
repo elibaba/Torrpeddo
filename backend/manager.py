@@ -4,6 +4,7 @@ import os
 import threading
 import subprocess
 import shutil
+import sys
 
 class TorrentManager:
     """
@@ -39,7 +40,7 @@ class TorrentManager:
             os.makedirs(self.download_dir)
             
         self._initialized = True
-        print(f"Torrent Manager initialized. Downloads directory: {self.download_dir}")
+        print(f"Torrent Manager initialized. Downloads directory: {self.download_dir}", file=sys.stderr)
 
     def set_download_dir(self, path):
         """Updates the global download path for all new torrents."""
@@ -139,7 +140,7 @@ class TorrentManager:
                 subprocess.Popen(['xdg-open', target_path], stderr=subprocess.PIPE)
                 return True, "Opened successfully"
             except Exception as e:
-                print(f"Failed to open folder: {e}")
+                print(f"Failed to open folder: {e}", file=sys.stderr)
                 return False, str(e)
         return False, "Torrent hash not found"
 
@@ -170,5 +171,5 @@ class TorrentManager:
             path = result.stdout.strip()
             return path if path else None
         except Exception as e:
-            print(f"Failed to open directory selector: {e}")
+            print(f"Failed to open directory selector: {e}", file=sys.stderr)
             return None
