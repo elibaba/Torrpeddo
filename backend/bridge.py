@@ -1,10 +1,10 @@
-/**
- * bridge.py - Python IPC Bridge
- * 
- * This script serves as the glue between the Electron desktop app and the 
- * TorrentManager (libtorrent). It reads JSON-formatted commands from 
- * standard input and returns JSON-formatted responses to standard output.
- */
+"""
+bridge.py - Python IPC Bridge
+
+This script serves as the glue between the Electron desktop app and the 
+TorrentManager (libtorrent). It reads JSON-formatted commands from 
+standard input and returns JSON-formatted responses to standard output.
+"""
 
 import sys
 import json
