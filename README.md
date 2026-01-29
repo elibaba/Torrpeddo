@@ -2,7 +2,7 @@
 
 ![Torrpeddo Banner](assets/banner.png)
 
-An experimental, single-user torrent client built with Python and Flask.
+An experimental, single-user torrent client built with Python and Electron.
 
 ![Dashboard Screenshot](assets/screenshot.png)
 
@@ -11,47 +11,48 @@ An experimental, single-user torrent client built with Python and Flask.
 - **Magnet Link Support**: Easily add downloads via magnet URIs.
 - **.torrent File Upload**: Support for traditional torrent files.
 - **Real-time Monitoring**: Live status updates for download/upload speeds, progress, and peers.
-- **Customizable Destination**: Set your download folder directly from the web UI.
+- **Customizable Destination**: Set your download folder directly from the app.
 - **Premium UI**: Modern dark-mode interface with glassmorphism and smooth animations.
 
 ## Installation
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/yourusername/Torrpeddo.git
+   git clone https://github.com/elibaba/Torrpeddo.git
    cd Torrpeddo
    ```
 
 2. **Install dependencies**:
    ```bash
    pip install -r requirements.txt
+   npm install
    ```
    *Note: On Linux, you might need to install `libtorrent` system-wide:*
    `sudo apt-get install python3-libtorrent`
 
 3. **Run the application**:
    ```bash
-   python app.py
+   npm start
    ```
-
-4. **Access the dashboard**:
-   Open `http://localhost:5000` in your web browser.
 
 ## Tech Stack
 
-- **Backend**: Flask (Python)
+- **Wrapper**: Electron
+- **Backend**: Python (via IPC bridge)
 - **Torrent Engine**: libtorrent
-- **Frontend**: Vanilla HTML/CSS/JS
+- **Frontend**: Vanilla HTML/CSS/JS (Renderer process)
 
 ## Project Structure
 
 ```text
 Torrpeddo/
-├── app.py              # Flask entry point
+├── main.js             # Electron main process
+├── preload.js          # Electron preload script
 ├── backend/
-│   └── manager.py      # Core torrent logic
-├── static/             # Frontend assets
-│   └── css/
-├── templates/          # HTML templates
-└── requirements.txt    # Python dependencies
+│   ├── bridge.py       # IPC bridge between Electron and Manager
+│   └── manager.py      # Core torrent logic (Python)
+├── renderer/           # Frontend assets (HTML/CSS/JS)
+│   ├── index.html
+│   └── static/
+└── package.json        # Node.js configuration
 ```

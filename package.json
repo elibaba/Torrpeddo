@@ -1,0 +1,27 @@
+{
+  "name": "torrpeddo",
+  "version": "1.0.0",
+  "description": "![Torrpeddo Banner](assets/banner.png)",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/elibaba/Torrpeddo.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/elibaba/Torrpeddo/issues"
+  },
+  "homepage": "https://github.com/elibaba/Torrpeddo#readme",
+  "devDependencies": {
+    "electron": "^40.1.0"
+  },
+  "dependencies": {
+    "python-shell": "^5.0.0"
+  }
+}
