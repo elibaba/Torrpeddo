@@ -35,6 +35,25 @@ An experimental, single-user torrent client built with Python and Electron.
    npm start
    ```
 
+## Creating a Portable EXE (Windows)
+
+To bundle the application into a single, standalone `.exe` that runs without installation:
+
+1. **Bundle Python Backend**:
+   On a Windows machine, run the following in PowerShell:
+   ```powershell
+   ./build-python.ps1
+   ```
+   This creates `backend/dist/bridge.exe`.
+
+2. **Build Distribution**:
+   Run the following command:
+   ```bash
+   npm run dist
+   ```
+
+The portable executable will be created in the `dist/` folder.
+
 ## Tech Stack
 
 - **Wrapper**: Electron
