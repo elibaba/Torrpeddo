@@ -20,10 +20,7 @@
                 <input type="text" id="magnet-input" placeholder="Paste magnet link here..."
                     onkeydown="if(event.key === 'Enter') addMagnet()">
                 <button onclick="addMagnet()">Add Magnet</button>
-                <label for="torrent-upload" class="button"
-                    style="background: var(--border); padding: 0.75rem 1.5rem; border-radius: 0.5rem; cursor: pointer; display: inline-block;">Upload
-                    .torrent</label>
-                <input type="file" id="torrent-upload" style="display: none" onchange="uploadTorrent()">
+                <button onclick="uploadTorrent()">Upload .torrent</button>
             </div>
             <div id="toast" class="toast"></div>
             <div class="destination-bar">
@@ -161,17 +158,21 @@
 
         /**
          * uploadTorrent: Handles .torrent file selection.
-         * Since we are in Electron, we pass the absolute file path to Python.
+         * We now use the native Electron file picker for better OS integration.
          */
         async function uploadTorrent() {
-            const fileInput = document.getElementById('torrent-upload');
-            const file = fileInput.files[0];
-            if (!file) return;
-
-            showToast('Uploading torrent file...', 'info');
+            showToast('Opening torrent selector...', 'info');
             try {
-                // In Electron, file.path is the actual absolute path on disk
-                const res = await sendCommand('add_torrent_file', { filepath: file.path });
+                const result = await window.electronAPI.invoke('select-torrent');
+                if (result.cancelled) {
+                    showToast('Selection cancelled', 'info');
+                    return;
+                }
+
+                const filepath = result.path;
+                showToast('Adding torrent file...', 'info');
+
+                const res = await sendCommand('add_torrent_file', { filepath: filepath });
                 if (res.success) {
                     showToast('Torrent file added successfully', 'success');
                     fetchStatus();
@@ -198,7 +199,7 @@
         async function changeDir() {
             showToast('Opening folder selector...', 'info');
             try {
-                const selData = await sendCommand('select_dir');
+                const selData = await window.electronAPI.invoke('select-dir');
                 if (selData.cancelled) {
                     showToast('Selection cancelled', 'info');
                     return;

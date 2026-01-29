@@ -6,7 +6,7 @@
  * communication bridge between the renderer (UI) and the Python backend.
  */
 
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const { PythonShell } = require('python-shell');
 
@@ -92,6 +92,28 @@ ipcMain.on('to-python', (event, args) => {
     if (pythonProcess) {
         pythonProcess.send(args);
     }
+});
+
+/**
+ * Handle Native Dialogs:
+ * We move directory and file selection to Electron's main process
+ * for better reliability across different Linux environments.
+ */
+ipcMain.handle('select-dir', async () => {
+    const result = await dialog.showOpenDialog(mainWindow, {
+        properties: ['openDirectory']
+    });
+    if (result.canceled) return { cancelled: true };
+    return { cancelled: false, path: result.filePaths[0] };
+});
+
+ipcMain.handle('select-torrent', async () => {
+    const result = await dialog.showOpenDialog(mainWindow, {
+        properties: ['openFile'],
+        filters: [{ name: 'Torrents', extensions: ['torrent'] }]
+    });
+    if (result.canceled) return { cancelled: true };
+    return { cancelled: false, path: result.filePaths[0] };
 });
 
 /**

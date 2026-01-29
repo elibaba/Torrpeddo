@@ -77,10 +77,6 @@ def main():
                 info_hash = args.get('info_hash')
                 success = manager.resume_torrent(info_hash)
                 response['data'] = {'success': success}
-            elif cmd == 'select_dir':
-                # Launches a native folder picker on the system
-                path = manager.select_directory()
-                response['data'] = {'path': path, 'cancelled': not path}
             elif cmd == 'open_folder':
                 # Opens the containing folder of a downloaded torrent in the native file explorer
                 info_hash = args.get('info_hash')

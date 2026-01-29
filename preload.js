@@ -29,5 +29,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
             // Strip the event object from the args list to prevent exposing the sender object
             ipcRenderer.on(channel, (event, ...args) => func(...args));
         }
+    },
+
+    /**
+     * invoke: Allows the renderer to call an IPC handler and wait for a result.
+     */
+    invoke: (channel, ...args) => {
+        let validChannels = ['select-dir', 'select-torrent'];
+        if (validChannels.includes(channel)) {
+            return ipcRenderer.invoke(channel, ...args);
+        }
     }
 });

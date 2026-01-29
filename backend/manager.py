@@ -161,17 +161,3 @@ class TorrentManager:
             handle.resume()
             return True
         return False
-
-    def select_directory(self):
-        """
-        Launches a native directory selector using Tkinter.
-        This is run in a separate subprocess to avoid blocking the main bridge loop.
-        """
-        try:
-            cmd = "import tkinter as tk; from tkinter import filedialog; root = tk.Tk(); root.withdraw(); print(filedialog.askdirectory())"
-            result = subprocess.run(['python3', '-c', cmd], capture_output=True, text=True)
-            path = result.stdout.strip()
-            return path if path else None
-        except Exception as e:
-            print(f"Failed to open directory selector: {e}", file=sys.stderr)
-            return None
