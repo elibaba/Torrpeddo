@@ -28,7 +28,22 @@ class TorrentManager:
             return
         
         # Initialize the libtorrent session
-        self.ses = lt.session({'listen_interfaces': '0.0.0.0:6881'})
+        # Enable DHT, LSD, UPnP, and NAT-PMP for maximum connectivity
+        self.ses = lt.session({
+            'listen_interfaces': '0.0.0.0:6881',
+            'enable_dht': True,
+            'enable_lsd': True,
+            'enable_upnp': True,
+            'enable_natpmp': True
+        })
+        
+        # Add bootstrap nodes for DHT
+        self.ses.add_dht_router("router.bittorrent.com", 6881)
+        self.ses.add_dht_router("router.utorrent.com", 6881)
+        self.ses.add_dht_router("dht.transmissionbt.com", 6881)
+        
+        # Start DHT immediately
+        self.ses.start_dht()
         
         # Dictionary to store torrent handles, keyed by info_hash
         self.downloads = {}
