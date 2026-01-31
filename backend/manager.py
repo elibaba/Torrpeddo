@@ -42,14 +42,31 @@ class TorrentManager:
         print(f"Torrent Manager initialized. Downloads directory: {self.download_dir}", file=sys.stderr)
 
     def set_download_dir(self, path):
-        """Updates the global download path for all new torrents."""
+        """
+        Updates the global download directory where new torrents will be saved.
+        
+        Args:
+            path (str): The absolute path to the directory.
+            
+        Returns:
+            bool: True if the path exists/valid, False otherwise.
+        """
         if os.path.exists(path):
             self.download_dir = path
             return True
         return False
 
     def add_magnet(self, magnet_uri):
-        """Parses a magnet URI and adds it to the session."""
+        """
+        Parses a magnet URI and starts the download.
+        Processing is done in a separate thread to keep the UI responsive.
+        
+        Args:
+            magnet_uri (str): The magnet link string.
+            
+        Returns:
+            str: The info_hash of the added torrent.
+        """
         def _add_task():
             try:
                 params = lt.parse_magnet_uri(magnet_uri)
@@ -71,7 +88,16 @@ class TorrentManager:
         return str(temp_params.info_hash)
 
     def add_torrent_file(self, torrent_data):
-        """Decodes .torrent file data and adds it to the session."""
+        """
+        Add a .torrent file to the session from raw binary data.
+        Uses libtorrent 2.0+ add_torrent_params for compatibility.
+        
+        Args:
+            torrent_data (bytes): The raw content of the .torrent file.
+            
+        Returns:
+            str: The info_hash of the added torrent.
+        """
         def _add_task():
             try:
                 info = lt.torrent_info(lt.bdecode(torrent_data))
@@ -95,7 +121,13 @@ class TorrentManager:
         return str(info.info_hash())
 
     def get_all_status(self):
-        """Retrieves live metrics for all active downloads."""
+        """
+        Iterates through all active downloads and returns their current status.
+        Includes safeguards against race conditions and file system checks.
+        
+        Returns:
+            list: A list of dicts with keys like 'name', 'progress', 'state'.
+        """
         status_list = []
         
         with self._lock:
@@ -140,7 +172,15 @@ class TorrentManager:
         return status_list
 
     def remove_torrent(self, info_hash):
-        """Removes a torrent completely from tracking."""
+        """
+        Stops and removes a torrent from the session, but KEEPS the downloaded files.
+        
+        Args:
+            info_hash (str): The hash of the torrent to remove.
+            
+        Returns:
+            bool: True if found and removed, False otherwise.
+        """
         with self._lock:
             if info_hash in self.downloads:
                 handle = self.downloads.pop(info_hash)
@@ -149,7 +189,15 @@ class TorrentManager:
         return False
 
     def delete_torrent_and_files(self, info_hash):
-        """Removes a torrent and deletes its files from disk."""
+        """
+        Stops and removes a torrent AND permanently deletes the downloaded files.
+        
+        Args:
+            info_hash (str): The hash of the torrent to delete.
+            
+        Returns:
+            bool: True if successful, False otherwise.
+        """
         with self._lock:
             if info_hash in self.downloads:
                 handle = self.downloads.pop(info_hash)
@@ -179,7 +227,16 @@ class TorrentManager:
         return False
 
     def open_folder(self, info_hash):
-        """Opens the containing folder of a torrent."""
+        """
+        Opens the file explorer to the directory containing the downloaded file.
+        Uses xdg-open for Linux system compatibility.
+        
+        Args:
+            info_hash (str): The torrent to locate.
+            
+        Returns:
+            (bool, str): A tuple (Success, Message).
+        """
         if info_hash in self.downloads:
             handle = self.downloads[info_hash]
             s = handle.status()
@@ -205,7 +262,16 @@ class TorrentManager:
         return False, "Torrent hash not found"
 
     def pause_torrent(self, info_hash):
-        """Pauses a specific torrent."""
+        """
+        Pauses a specific torrent and disables auto-management.
+        This forces the torrent to stay paused regardless of queue rules.
+        
+        Args:
+            info_hash (str): The hash of the torrent to pause.
+            
+        Returns:
+            bool: True if successful.
+        """
         if info_hash in self.downloads:
             handle = self.downloads[info_hash]
             handle.unset_flags(lt.torrent_flags.auto_managed)
@@ -214,7 +280,15 @@ class TorrentManager:
         return False
 
     def resume_torrent(self, info_hash):
-        """Resumes a specific torrent."""
+        """
+        Resumes a paused torrent and re-enables auto-management.
+        
+        Args:
+            info_hash (str): The hash of the torrent to resume.
+            
+        Returns:
+            bool: True if successful.
+        """
         if info_hash in self.downloads:
             handle = self.downloads[info_hash]
             handle.set_flags(lt.torrent_flags.auto_managed)
