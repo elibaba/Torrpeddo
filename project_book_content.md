@@ -63,7 +63,12 @@ Users can stop an active download at any time by clicking the "Cancel" button. T
 - Stops all network and disk I/O associated with the task.
 - Transitions the torrent to a "Cancelled" state in the UI for further action.
 
-### 2. Disk Cleanup & File Deletion
+### 2. State Management (Pause/Resume)
+Torrpeddo utilizes explicit flag management to ensure reliable pausing. 
+- **Precision Pause**: When a user pauses a torrent, the system explicitly unsets the `auto_managed` flag. This prevents the libtorrent internal queue manager from automatically resuming the task, ensuring the download remains stopped until the user explicitly intervenes.
+- **Resume Integrity**: Resuming a torrent re-enables auto-management, allowing the engine to optimize peer connections and throughput immediately.
+
+### 3. Disk Cleanup & File Deletion
 For cancelled torrents, Torrpeddo offers a dedicated "Delete Files" operation.
 - Target Removal: Deletes the specific files or directories associated with the cancelled torrent.
 - State Sync: Once files are deleted, the torrent entry is removed from the session tracking, keeping the UI clean.
