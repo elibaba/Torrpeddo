@@ -103,22 +103,24 @@ class TorrentManager:
         """
         def _add_task():
             try:
+                print(f"DEBUG: Starting add_torrent_file thread...", file=sys.stderr)
                 info = lt.torrent_info(lt.bdecode(torrent_data))
-                params = {
-                    'save_path': self.download_dir,
-                    'ti': info
-                }
+                
+                # Use add_torrent_params for best compatibility with libtorrent 2.0+
+                atp = lt.add_torrent_params()
+                atp.ti = info
+                atp.save_path = self.download_dir
                 
                 # Libtorrent internally parallelizes the download of fragments.
                 # By adding the torrent to the session, we trigger its 
                 # high-performance, multi-threaded downloading engine.
-                handle = self.ses.add_torrent(params)
+                handle = self.ses.add_torrent(atp)
                 info_hash = str(handle.info_hash())
                 
                 with self._lock:
                     self.downloads[info_hash] = handle
                 
-                print(f"Torrent file added: {info_hash}", file=sys.stderr)
+                print(f"DEBUG: Torrent file added successfully: {info_hash}", file=sys.stderr)
             except Exception as e:
                 print(f"Error adding torrent file in thread: {e}", file=sys.stderr)
 
@@ -135,41 +137,46 @@ class TorrentManager:
         Returns a list of dictionaries containing progress, rates, and states.
         """
         status_list = []
-        # Debug logging to stderr (visible in electron console)
-        # print(f"DEBUG: get_all_status called. Active: {len(self.downloads)}, Cancelled: {len(self.cancelled)}", file=sys.stderr)
         
-        for info_hash, handle in self.downloads.items():
+        # Snapshot keys to avoid runtime modification issues during iteration
+        for info_hash in list(self.downloads.keys()):
             try:
+                handle = self.downloads.get(info_hash)
+                if not handle:
+                    continue
+
                 s = handle.status()
                 state_str = str(s.state)
                 is_paused = s.paused
                 
-                # print(f"DEBUG: Torrent {s.name} - Paused: {is_paused}, State: {state_str}", file=sys.stderr)
-
                 if is_paused and state_str != "checking_resume_data":
                     state_str = "Paused"
 
-            # Check if files still exist on disk
-            try:
-                if s.has_metadata and s.progress > 0:
-                    full_path = os.path.join(s.save_path, s.name)
-                    if not os.path.exists(full_path):
-                        state_str = "Error: Missing Files"
-            except Exception:
-                pass
+                # Check if files still exist on disk
+                try:
+                    if s.has_metadata and s.progress > 0:
+                        full_path = os.path.join(s.save_path, s.name)
+                        if not os.path.exists(full_path):
+                            state_str = "Error: Missing Files"
+                except Exception:
+                    pass
 
-            status_list.append({
-                'name': s.name,
-                'progress': s.progress * 100,
-                'download_rate': s.download_rate / 1000, # Convert to kB/s
-                'upload_rate': s.upload_rate / 1000,   # Convert to kB/s
-                'num_peers': s.num_peers,
-                'state': state_str,
-                'info_hash': info_hash,
-                'is_seeding': s.is_seeding,
-                'is_paused': is_paused,
-                'is_cancelled': False
-            })
+                status_list.append({
+                    'name': s.name,
+                    'progress': s.progress * 100,
+                    'download_rate': s.download_rate / 1000,
+                    'upload_rate': s.upload_rate / 1000,
+                    'num_peers': s.num_peers,
+                    'state': state_str,
+                    'info_hash': info_hash,
+                    'is_seeding': s.is_seeding,
+                    'is_paused': is_paused,
+                    'is_cancelled': False
+                })
+            except Exception as e:
+                # Log error but don't crash status loop
+                # print(f"Error getting status for {info_hash}: {e}", file=sys.stderr)
+                pass
 
         # Add cancelled torrents for UI visibility
         for info_hash, data in self.cancelled.items():
