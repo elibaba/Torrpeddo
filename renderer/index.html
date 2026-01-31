@@ -149,18 +149,45 @@
 
         .badge-active { background: rgba(52, 211, 153, 0.2); color: var(--success); }
         .badge-paused { background: rgba(251, 191, 36, 0.2); color: var(--paused); }
+
+        .dir-bar {
+            background: rgba(0,0,0,0.3);
+            border: 1px solid var(--border);
+            border-radius: 0.5rem;
+            padding: 0.75rem 1rem;
+            margin-bottom: 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+
+        .btn-sm {
+            padding: 0.4rem 0.8rem;
+            font-size: 0.8rem;
+            background: transparent;
+            border: 1px solid var(--accent);
+            color: var(--accent);
+        }
+        .btn-sm:hover { background: rgba(96, 165, 250, 0.1); }
     </style>
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>Torrpeddo</h1>
+            <img src="../assets/banner.png" alt="Torrpeddo" style="max-height: 80px; margin-bottom: 1rem;">
         </header>
 
         <section class="input-group">
             <button class="btn-upload" onclick="uploadTorrentFile()">Upload .torrent</button>
             <input type="text" id="magnet-link" placeholder="Paste magnet link...">
             <button class="btn-primary" onclick="addMagnet()">Add Magnet</button>
+        </section>
+
+        <section class="dir-bar">
+            <span>Save to: <span id="current-dir" style="color:white; font-family:monospace;">/Downloads</span></span>
+            <button class="btn-sm" onclick="changeDir()">Change</button>
         </section>
 
         <div id="torrent-list">
@@ -234,6 +261,23 @@
             } catch (e) { console.error(e); }
         }
 
+            async function changeDir() {
+                try {
+                    const res = await window.electronAPI.invoke('select-dir');
+                    if (!res.cancelled && res.path) {
+                        await sendCmd('set_config', { download_dir: res.path });
+                        fetchConfig();
+                    }
+                } catch (e) { console.error(e); }
+            }
+
+            async function fetchConfig() {
+                try {
+                    const cfg = await sendCmd('get_config');
+                    document.getElementById('current-dir').textContent = cfg.download_dir;
+                } catch (e) { console.error(e); }
+            }
+
         // Rendering
         async function refresh() {
             try {
@@ -277,6 +321,7 @@
         // Polling
         setInterval(refresh, 2000);
         refresh();
+            fetchConfig();
     </script>
 </body>
 </html>
