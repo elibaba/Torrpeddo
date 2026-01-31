@@ -38,10 +38,9 @@ def main():
                 if cmd == 'get_status':
                     response['data'] = manager.get_all_status()
                 elif cmd == 'get_config':
-                    response['data'] = {'download_dir': manager.download_dir}
+                    response['data'] = manager.get_config()
                 elif cmd == 'set_config':
-                    new_dir = args.get('download_dir')
-                    success = manager.set_download_dir(new_dir)
+                    success = manager.update_settings(args)
                     response['data'] = {'success': success}
                 elif cmd == 'add_torrent_file':
                     filepath = args.get('filepath')

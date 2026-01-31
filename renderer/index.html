@@ -176,6 +176,8 @@
 
         .badge-active { background: rgba(52, 211, 153, 0.2); color: var(--success); }
         .badge-paused { background: rgba(251, 191, 36, 0.2); color: var(--paused); }
+        .badge-seeding { background: rgba(167, 139, 250, 0.2); color: #a78bfa; }
+        .badge-finished { background: rgba(156, 163, 175, 0.2); color: #9ca3af; }
 
         .dir-bar {
             background: rgba(0,0,0,0.3);
@@ -215,8 +217,23 @@
         </section>
 
         <section class="dir-bar">
-            <span>Save to: <span id="current-dir" style="color:white; font-family:monospace;">/Downloads</span></span>
-            <button class="btn-sm" onclick="changeDir()">Change</button>
+            <div>
+                <span>Save to: <span id="current-dir" style="color:white; font-family:monospace;">/Downloads</span></span>
+                <button class="btn-sm" onclick="changeDir()">Change</button>
+            </div>
+            
+            <div style="display:flex; align-items:center; gap:1.5rem;">
+                <label style="display:flex; align-items:center; gap:0.5rem; cursor:pointer; font-size:0.9rem;">
+                    <input type="checkbox" id="seed-toggle" onchange="saveSettings()">
+                    <span>Seed</span>
+                </label>
+                <div id="ratio-group" style="display:flex; align-items:center; gap:0.5rem; opacity:0.5;">
+                    <span style="font-size:0.9rem;">Ratio:</span>
+                    <input type="number" id="seed-ratio" step="0.1" min="0" value="1.0"
+                        style="width:50px; background:rgba(0,0,0,0.3); border:1px solid var(--border); color:white; border-radius:4px; padding:2px 5px;"
+                        onchange="saveSettings()">
+                </div>
+            </div>
         </section>
 
         <div id="torrent-list">
@@ -308,8 +325,36 @@
                 try {
                     const cfg = await sendCmd('get_config');
                     document.getElementById('current-dir').textContent = cfg.download_dir;
+
+                    const toggle = document.getElementById('seed-toggle');
+                    const ratioInput = document.getElementById('seed-ratio');
+                    const ratioGroup = document.getElementById('ratio-group');
+
+                    toggle.checked = cfg.seeding_enabled;
+                    ratioInput.value = cfg.seed_ratio;
+
+                    ratioGroup.style.opacity = cfg.seeding_enabled ? '1' : '0.3';
+                    ratioInput.disabled = !cfg.seeding_enabled;
                 } catch (e) { console.error(e); }
             }
+
+                async function saveSettings() {
+                    const toggle = document.getElementById('seed-toggle');
+                    const ratioInput = document.getElementById('seed-ratio');
+                    const ratioGroup = document.getElementById('ratio-group');
+
+                    const enabled = toggle.checked;
+                    const ratio = parseFloat(ratioInput.value);
+
+                    // UI feedback
+                    ratioGroup.style.opacity = enabled ? '1' : '0.3';
+                    ratioInput.disabled = !enabled;
+
+                    await sendCmd('set_config', {
+                        seeding_enabled: enabled,
+                        seed_ratio: ratio
+                    });
+                }
 
         // Rendering
         async function refresh() {
@@ -324,12 +369,27 @@
 
                 list.innerHTML = torrents.map(t => {
                     const isPaused = t.is_paused;
+
+                    let badgeClass = 'badge-active';
+                    let statusLabel = 'DOWNLOADING';
+
+                    if (t.state === 'Seeding') {
+                        badgeClass = 'badge-seeding';
+                        statusLabel = 'SEEDING';
+                    } else if (t.state === 'Finished') {
+                        badgeClass = 'badge-finished';
+                        statusLabel = 'FINISHED';
+                    } else if (isPaused) {
+                        badgeClass = 'badge-paused';
+                        statusLabel = 'PAUSED';
+                    }
+
                     return `
-                        <div class="torrent-card" style="border-left: 4px solid ${isPaused ? 'var(--paused)' : 'var(--success)'}">
+                        <div class="torrent-card" style="border-left: 4px solid ${isPaused ? 'var(--paused)' : (t.state === 'Seeding' ? '#a78bfa' : 'var(--success)')}">
                             <div class="torrent-info">
                                 <div style="display:flex; align-items:center; gap:0.5rem;">
                                     <div class="torrent-name">${t.name}</div>
-                                    <span class="badge ${isPaused ? 'badge-paused' : 'badge-active'}">${isPaused ? 'PAUSED' : 'DOWNLOADING'}</span>
+                                    <span class="badge ${badgeClass}">${statusLabel}</span>
                                 </div>
                                 <div class="torrent-meta">
                                     <span>↓ ${t.download_rate.toFixed(1)} kB/s</span>
@@ -339,7 +399,7 @@
                                 </div>
                             </div>
                             <div class="torrent-actions">
-                                ${isPaused 
+                                ${isPaused || t.state === 'Finished'
                                     ? `<button class="btn-success" onclick="resumeTorrent('${t.info_hash}')">Resume</button>
                                        <button class="btn-upload" onclick="confirmDelete('${t.info_hash}')">Delete</button>`
                                     : `<button class="btn-pause" onclick="pauseTorrent('${t.info_hash}')">Pause</button>`

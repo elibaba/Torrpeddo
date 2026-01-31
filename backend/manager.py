@@ -39,22 +39,59 @@ class TorrentManager:
             os.makedirs(self.download_dir)
             
         self._initialized = True
+        
+        # Seeding Settings
+        self.seed_ratio = 1.0
+        self.seeding_enabled = True
+        
+        # Apply initial settings
+        settings = lt.settings_pack()
+        settings.set_int(lt.settings_pack.share_ratio_limit, 100) # Default 1.0
+        self.ses.apply_settings(settings)
+        
         print(f"Torrent Manager initialized. Downloads directory: {self.download_dir}", file=sys.stderr)
 
-    def set_download_dir(self, path):
+    def update_settings(self, settings):
         """
-        Updates the global download directory where new torrents will be saved.
+        Updates global configuration settings.
         
         Args:
-            path (str): The absolute path to the directory.
-            
+            settings (dict): Dictionary containing new settings.
+                             Keys: 'download_dir', 'seed_ratio', 'seeding_enabled'
         Returns:
-            bool: True if the path exists/valid, False otherwise.
+            bool: True.
         """
-        if os.path.exists(path):
-            self.download_dir = path
-            return True
-        return False
+        if 'download_dir' in settings:
+            path = settings['download_dir']
+            if os.path.exists(path):
+                self.download_dir = path
+
+        if 'seed_ratio' in settings:
+            self.seed_ratio = float(settings['seed_ratio'])
+            
+        if 'seeding_enabled' in settings:
+            self.seeding_enabled = bool(settings['seeding_enabled'])
+
+        # Apply to libtorrent
+        pack = lt.settings_pack()
+        if not self.seeding_enabled:
+             # Stop immediately after download
+             pack.set_int(lt.settings_pack.share_ratio_limit, 0)
+        else:
+             # Ratio is percentage integer in libtorrent (e.g., 2.0 -> 200)
+             ratio_int = int(self.seed_ratio * 100)
+             pack.set_int(lt.settings_pack.share_ratio_limit, ratio_int)
+             
+        self.ses.apply_settings(pack)
+        return True
+
+    def get_config(self):
+        """Returns the current configuration dict."""
+        return {
+            'download_dir': self.download_dir,
+            'seed_ratio': self.seed_ratio,
+            'seeding_enabled': self.seeding_enabled
+        }
 
     def add_magnet(self, magnet_uri):
         """
@@ -144,6 +181,13 @@ class TorrentManager:
                 
                 if is_paused and state_str != "checking_resume_data":
                     state_str = "Paused"
+                elif str(s.state) == 'seeding':
+                    state_str = "Seeding"
+                    
+                    # Enforce "No Seeding" policy if disabled
+                    if not self.seeding_enabled:
+                         handle.pause()
+                         state_str = "Finished"
 
                 try:
                     if s.has_metadata and s.progress > 0:
