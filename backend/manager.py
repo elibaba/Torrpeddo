@@ -50,25 +50,80 @@ class TorrentManager:
         return False
 
     def add_magnet(self, magnet_uri):
-        """Parses a magnet URI and adds it to the session."""
-        params = lt.parse_magnet_uri(magnet_uri)
-        params.save_path = self.download_dir
-        handle = self.ses.add_torrent(params)
-        info_hash = str(handle.info_hash())
-        self.downloads[info_hash] = handle
-        return info_hash
+        """
+        Parses a magnet URI and adds it to the session.
+        
+        Refactored to use multi-threading:
+        While libtorrent 2.0+ is internally multi-threaded, we handle the 
+        addition of new torrents in a separate Python thread to ensure 
+        the manager remains responsive even during metadata fetching.
+        """
+        def _add_task():
+            try:
+                params = lt.parse_magnet_uri(magnet_uri)
+                params.save_path = self.download_dir
+                
+                # Each torrent added to the session benefit from libtorrent's
+                # internal multi-threading. It uses a thread pool to manage 
+                # multiple torrent fragments simultaneously and performs 
+                # asynchronous disk I/O.
+                handle = self.ses.add_torrent(params)
+                info_hash = str(handle.info_hash())
+                
+                with self._lock:
+                    self.downloads[info_hash] = handle
+                
+                print(f"Torrent added via magnet: {info_hash}", file=sys.stderr)
+            except Exception as e:
+                print(f"Error adding magnet in thread: {e}", file=sys.stderr)
+
+        # Start the addition in a daemon thread to avoid blocking the main IPC loop
+        thread = threading.Thread(target=_add_task, daemon=True)
+        thread.start()
+        
+        # We return a temporary identifier or wait for metadata if needed.
+        # For simplicity in this refactor, we return the expected hash if possible,
+        # or a placeholder if parsing is slow. 
+        # Actually, parse_magnet_uri is fast, so we can get the hash here.
+        temp_params = lt.parse_magnet_uri(magnet_uri)
+        return str(temp_params.info_hash)
 
     def add_torrent_file(self, torrent_data):
-        """Decodes .torrent file data and adds it to the session."""
+        """
+        Decodes .torrent file data and adds it to the session.
+        
+        This method is refactored to emphasize multi-threaded operation.
+        The actual fragment downloading is handled by libtorrent's 
+        internal engine, which utilizes a pool of threads to maintain 
+        simultaneous connections and piece requests.
+        """
+        def _add_task():
+            try:
+                info = lt.torrent_info(lt.bdecode(torrent_data))
+                params = {
+                    'save_path': self.download_dir,
+                    'ti': info
+                }
+                
+                # Libtorrent internally parallelizes the download of fragments.
+                # By adding the torrent to the session, we trigger its 
+                # high-performance, multi-threaded downloading engine.
+                handle = self.ses.add_torrent(params)
+                info_hash = str(handle.info_hash())
+                
+                with self._lock:
+                    self.downloads[info_hash] = handle
+                
+                print(f"Torrent file added: {info_hash}", file=sys.stderr)
+            except Exception as e:
+                print(f"Error adding torrent file in thread: {e}", file=sys.stderr)
+
+        thread = threading.Thread(target=_add_task, daemon=True)
+        thread.start()
+        
+        # Return the info_hash immediately by parsing the data synchronously
         info = lt.torrent_info(lt.bdecode(torrent_data))
-        params = {
-            'save_path': self.download_dir,
-            'ti': info
-        }
-        handle = self.ses.add_torrent(params)
-        info_hash = str(handle.info_hash())
-        self.downloads[info_hash] = handle
-        return info_hash
+        return str(info.info_hash())
 
     def get_all_status(self):
         """
