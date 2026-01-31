@@ -108,10 +108,10 @@
             }
 
             container.innerHTML = torrents.map(t => `
-                <div class="card torrent-item active">
+                <div class="card torrent-item ${t.is_cancelled ? 'cancelled' : 'active'}">
                     <div class="torrent-header">
                         <div style="font-weight: 600;">${t.name || 'Fetching metadata...'}</div>
-                        <div class="badge ${t.is_seeding ? 'badge-seeding' : 'badge-downloading'}">${t.state}</div>
+                        <div class="badge ${t.is_cancelled ? 'badge-cancelled' : (t.is_seeding ? 'badge-seeding' : 'badge-downloading')}">${t.state}</div>
                     </div>
                     <div class="progress-container">
                         <div class="progress-bar" style="width: ${t.progress}%"></div>
@@ -121,12 +121,19 @@
                         <div class="stat-item">↑ ${t.upload_rate.toFixed(1)} kB/s</div>
                         <div class="stat-item">👥 ${t.num_peers} peers</div>
                         <div class="stat-item" style="margin-left: auto;">${t.progress.toFixed(1)}%</div>
-                        ${t.is_paused
+
+                        ${!t.is_cancelled ? `
+                            ${t.is_paused
                     ? `<button onclick="resumeTorrent('${t.info_hash}')" style="background: transparent; padding: 0; color: var(--text-main); font-size: 0.75rem; margin-right: 1rem;">Resume</button>`
                     : `<button onclick="pauseTorrent('${t.info_hash}')" style="background: transparent; padding: 0; color: var(--text-muted); font-size: 0.75rem; margin-right: 1rem;">Pause</button>`
-                }
-                        ${t.is_seeding ? `<button onclick="openFolder('${t.info_hash}')" style="background: transparent; padding: 0; color: var(--success); font-size: 0.75rem; margin-right: 1rem;">Open Folder</button>` : ''}
-                        ${t.is_seeding ? `<button onclick="removeTorrent('${t.info_hash}')" style="background: transparent; padding: 0; color: #ef4444; font-size: 0.75rem;">Remove</button>` : ''}
+                            }
+                            <button onclick="cancelTorrent('${t.info_hash}')" style="background: transparent; padding: 0; color: #f97316; font-size: 0.75rem; margin-right: 1rem;">Cancel</button>
+                            ${t.is_seeding ? `<button onclick="openFolder('${t.info_hash}')" style="background: transparent; padding: 0; color: var(--success); font-size: 0.75rem; margin-right: 1rem;">Open Folder</button>` : ''}
+                            ${t.is_seeding ? `<button onclick="removeTorrent('${t.info_hash}')" style="background: transparent; padding: 0; color: #ef4444; font-size: 0.75rem;">Remove</button>` : ''}
+                        ` : `
+                            <button onclick="deleteCancelledFiles('${t.info_hash}')" style="background: transparent; padding: 0; color: #ef4444; font-size: 0.75rem; margin-right: 1rem;">Delete Files</button>
+                            <button onclick="removeTorrent('${t.info_hash}')" style="background: transparent; padding: 0; color: var(--text-muted); font-size: 0.75rem;">Dismiss</button>
+                        `}
                     </div>
                 </div>
             `).join('');
@@ -231,6 +238,28 @@
             fetchStatus();
         }
 
+            async function cancelTorrent(hash) {
+                if (confirm('Are you sure you want to cancel this download?')) {
+                    const res = await sendCommand('cancel_torrent', { info_hash: hash });
+                    if (res.success) {
+                        showToast('Download cancelled', 'info');
+                        fetchStatus();
+                    }
+                }
+            }
+
+            async function deleteCancelledFiles(hash) {
+                if (confirm('Are you sure you want to delete the files for this torrent?')) {
+                    const res = await sendCommand('delete_cancelled_files', { info_hash: hash });
+                    if (res.success) {
+                        showToast('Files deleted successfully', 'success');
+                        fetchStatus();
+                    } else {
+                        showToast('Failed to delete files', 'error');
+                    }
+                }
+            }
+
         async function openFolder(hash) {
             try {
                 const res = await sendCommand('open_folder', { info_hash: hash });
@@ -293,6 +322,17 @@
 
         .toast.error {
             border-color: #ef4444;
+        }
+
+        .torrent-item.cancelled {
+            border-color: var(--border);
+            opacity: 0.8;
+            background: rgba(30, 41, 59, 0.4);
+        }
+
+        .badge-cancelled {
+            background: rgba(249, 115, 22, 0.2);
+            color: #f97316;
         }
     </style>
 </body>

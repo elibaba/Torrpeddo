@@ -34,6 +34,10 @@ class TorrentManager:
         # Dictionary to store torrent handles, keyed by info_hash
         self.downloads = {}
         
+        # Dictionary to store cancelled torrent data, keyed by info_hash
+        # Stores { 'name': str, 'save_path': str }
+        self.cancelled = {}
+        
         # Default download directory: Use the folder from which the application was launched
         self.download_dir = os.path.abspath(os.getcwd())
         if not os.path.exists(self.download_dir):
@@ -127,7 +131,7 @@ class TorrentManager:
 
     def get_all_status(self):
         """
-        Retrieves live metrics for all active downloads.
+        Retrieves live metrics for all active and cancelled downloads.
         Returns a list of dictionaries containing progress, rates, and states.
         """
         status_list = []
@@ -140,7 +144,6 @@ class TorrentManager:
                 state_str = "Paused"
 
             # Check if files still exist on disk
-            # Only check if metadata is acquired and some progress has been made (to avoid premature error)
             try:
                 if s.has_metadata and s.progress > 0:
                     full_path = os.path.join(s.save_path, s.name)
@@ -158,16 +161,76 @@ class TorrentManager:
                 'state': state_str,
                 'info_hash': info_hash,
                 'is_seeding': s.is_seeding,
-                'is_paused': is_paused
+                'is_paused': is_paused,
+                'is_cancelled': False
             })
+
+        # Add cancelled torrents for UI visibility
+        for info_hash, data in self.cancelled.items():
+            status_list.append({
+                'name': data['name'],
+                'progress': 0,
+                'download_rate': 0,
+                'upload_rate': 0,
+                'num_peers': 0,
+                'state': 'Cancelled',
+                'info_hash': info_hash,
+                'is_seeding': False,
+                'is_paused': False,
+                'is_cancelled': True
+            })
+
         return status_list
 
     def remove_torrent(self, info_hash):
-        """Removes a torrent from the session and the local tracking dict."""
-        if info_hash in self.downloads:
-            handle = self.downloads.pop(info_hash)
-            self.ses.remove_torrent(handle)
-            return True
+        """Removes a torrent (active or cancelled) completely from tracking."""
+        with self._lock:
+            if info_hash in self.downloads:
+                handle = self.downloads.pop(info_hash)
+                self.ses.remove_torrent(handle)
+                return True
+            if info_hash in self.cancelled:
+                self.cancelled.pop(info_hash)
+                return True
+        return False
+
+    def cancel_torrent(self, info_hash):
+        """Stops a torrent and moves it to the cancelled state."""
+        with self._lock:
+            if info_hash in self.downloads:
+                handle = self.downloads.pop(info_hash)
+                s = handle.status()
+                # Store data for cleanup later
+                self.cancelled[info_hash] = {
+                    'name': s.name,
+                    'save_path': s.save_path
+                }
+                self.ses.remove_torrent(handle)
+                print(f"Torrent cancelled: {info_hash}", file=sys.stderr)
+                return True
+        return False
+
+    def delete_cancelled_files(self, info_hash):
+        """Deletes files associated with a cancelled torrent."""
+        with self._lock:
+            if info_hash in self.cancelled:
+                data = self.cancelled.pop(info_hash)
+                full_path = os.path.join(data['save_path'], data['name'])
+                
+                try:
+                    if os.path.exists(full_path):
+                        if os.path.isdir(full_path):
+                            shutil.rmtree(full_path)
+                        else:
+                            os.remove(full_path)
+                        print(f"Files deleted for cancelled torrent: {full_path}", file=sys.stderr)
+                        return True
+                    else:
+                        print(f"Files already missing for cancelled torrent: {full_path}", file=sys.stderr)
+                        return True # Already gone is fine
+                except Exception as e:
+                    print(f"Error deleting files: {e}", file=sys.stderr)
+                    return False
         return False
 
     def open_folder(self, info_hash):
