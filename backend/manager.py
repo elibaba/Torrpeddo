@@ -63,8 +63,11 @@ class TorrentManager:
         """
         if 'download_dir' in settings:
             path = settings['download_dir']
-            if os.path.exists(path):
+            if path and os.path.isdir(path):
                 self.download_dir = path
+                print(f"DEBUG: Download directory updated to: {self.download_dir}", file=sys.stderr)
+            else:
+                 print(f"DEBUG: Invalid download directory provided: {path}", file=sys.stderr)
 
         if 'seed_ratio' in settings:
             self.seed_ratio = float(settings['seed_ratio'])
