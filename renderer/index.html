@@ -68,8 +68,8 @@
 
         async function fetchStatus() {
             try {
-                const torrents = await sendCommand('get_status');
-                renderTorrents(torrents);
+                const torrentData = await sendCommand('get_status');
+                renderTorrents(torrentData);
             } catch (err) {
                 console.error('Failed to fetch status', err);
             }
@@ -77,49 +77,68 @@
 
         async function fetchConfig() {
             try {
-                const data = await sendCommand('get_config');
-                document.getElementById('current-dir').textContent = data.download_dir;
+                const configData = await sendCommand('get_config');
+                document.getElementById('current-dir').textContent = configData.download_dir;
             } catch (err) {
                 console.error('Failed to fetch config', err);
             }
         }
 
-        function renderTorrents(torrents) {
+        function renderTorrents(allTorrents) {
             const container = document.getElementById('torrent-container');
-            if (!torrents || torrents.length === 0) {
+            if (!allTorrents || allTorrents.length === 0) {
                 container.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 2rem;">No active downloads</div>';
                 return;
             }
 
-            const active = torrents                     !t.is_cancelled);
-            const cancelled = torrents.filter                    ancelled);
+            const activeTasks = [];
+            const historyItems = [];
+            
+            allTorrents.forEach(item => {
+                if (item.is_cancelled) {
+                    historyItems.push(item);
+                } else {
+                    activeTasks.push(item);
+                }
+            });
 
-            let html = '';
+            let finalHtml = '';
 
-                          tive.length > 0) {
-                html += '<div class="section-header">Active Tasks</div>';
-                html += active.m                        rrentIte                    ');                     }
+            if (activeTasks.length > 0) {
+                finalHtml += '<div class="section-header">Active Tasks</div>';
+                activeTasks.forEach(task => {
+                    finalHtml += renderTorrentItem(task);
+                });
+            }
 
-            if (cancelled.length > 0) {
-                              = '<div class="section-header" style="margin-top: 2.5rem;                    --text-muted);">                    story</div>';
-                                   celled.map(t => renderTorrentItem(t)).join('');
-                                   container.innerHTML = html;
+            if (historyItems.length > 0) {
+                finalHtml += '<div class="section-header" style="margin-top: 2.5rem; color: var(--text-muted);">Stopped / History</div>';
+                historyItems.forEach(task => {
+                    finalHtml += renderTorrentItem(task);
+                });
+            }
+
+            container.innerHTML = finalHtml;
         }
 
-        function                    ntI                             return `
+        function renderTorrentItem(t) {
+            const stateLabel = t.is_cancelled ? 'badge-cancelled' : (t.is_seeding ? 'badge-seeding' : 'badge-downloading');
+            const progressPercent = t.progress;
+            
+            return `
                 <div class="card torrent-item ${t.is_cancelled ? 'cancelled' : 'active'}">
                     <div class="torrent-header">
                         <div style="font-weight: 600;">${t.name || 'Fetching metadata...'}</div>
-                        <div class="badge ${t.is_cancelled ? 'badge-cancelled' : (t.is_seeding ? 'badge-seeding' : 'badge-downloading')}">${t.state}</div>
+                        <div class="badge ${stateLabel}">${t.state}</div>
                     </div>
                     <div class="progress-container">
-                        <div class="progress-bar" style="width: ${t.progress}%"></div>
+                        <div class="progress-bar" style="width: ${progressPercent}%"></div>
                     </div>
                     <div class="stats">
                         <div class="stat-item">↓ ${t.download_rate.toFixed(1)} kB/s</div>
                         <div class="stat-item">↑ ${t.upload_rate.toFixed(1)} kB/s</div>
                         <div class="stat-item">👥 ${t.num_peers} peers</div>
-                        <div class="stat-item" style="margin-left: auto;">${t.progress.toFixed(1)}%</div>
+                        <div class="stat-item" style="margin-left: auto;">${progressPercent.toFixed(1)}%</div>
                         
                         ${!t.is_cancelled ? `
                             ${t.is_paused
@@ -138,19 +157,19 @@
         }
 
         async function addMagnet() {
-            const magnet = document.getElementById('magnet-input').value;
-            if (!magnet) return;
+            const magnetValue = document.getElementById('magnet-input').value;
+            if (!magnetValue) return;
 
             showToast('Adding magnet link...', 'info');
 
             try {
-                const res = await sendCommand('add_magnet', { magnet_url: magnet });
-                if (res.success) {
+                const addRes = await sendCommand('add_magnet', { magnet_url: magnetValue });
+                if (addRes.success) {
                     document.getElementById('magnet-input').value = '';
                     showToast('Magnet link added successfully', 'success');
                     fetchStatus();
                 } else {
-                    showToast(res.error || 'Failed to add magnet link', 'error');
+                    showToast(addRes.error || 'Failed to add magnet link', 'error');
                 }
             } catch (err) {
                 showToast('Bridge error: ' + err, 'error');
@@ -161,21 +180,21 @@
         async function uploadTorrent() {
             showToast('Opening torrent selector...', 'info');
             try {
-                const result = await window.electronAPI.invoke('select-torrent');
-                if (result.cancelled) {
+                const uploadResult = await window.electronAPI.invoke('select-torrent');
+                if (uploadResult.cancelled) {
                     showToast('Selection cancelled', 'info');
                     return;
                 }
 
-                const filepath = result.path;
+                const path = uploadResult.path;
                 showToast('Adding torrent file...', 'info');
 
-                const res = await sendCommand('add_torrent_file', { filepath: filepath });
-                if (res.success) {
+                const fileRes = await sendCommand('add_torrent_file', { filepath: path });
+                if (fileRes.success) {
                     showToast('Torrent file added successfully', 'success');
                     fetchStatus();
                 } else {
-                    showToast(res.error || 'Failed to add torrent', 'error');
+                    showToast(fileRes.error || 'Failed to add torrent', 'error');
                 }
             } catch (err) {
                 console.error(err);
@@ -183,28 +202,28 @@
             }
         }
 
-        async function removeTorrent(hash) {
+        async function removeTorrent(infoHash) {
             if (confirm('Are you sure you want to remove this torrent from the list?')) {
-                await sendCommand('remove_torrent', { info_hash: hash });
+                await sendCommand('remove_torrent', { info_hash: infoHash });
                 fetchStatus();
             }
         }
 
-        async function pauseTorrent(hash) {
-            await sendCommand('pause_torrent', { info_hash: hash });
+        async function pauseTorrent(infoHash) {
+            await sendCommand('pause_torrent', { info_hash: infoHash });
             fetchStatus();
         }
 
-        async function resumeTorrent(hash) {
-            await sendCommand('resume_torrent', { info_hash: hash });
+        async function resumeTorrent(infoHash) {
+            await sendCommand('resume_torrent', { info_hash: infoHash });
             fetchStatus();
         }
 
-        async function cancelTorrent(hash) {
+        async function cancelTorrent(infoHash) {
             if (confirm('Stop download and move to cancelled list?')) {
                 try {
-                    const res = await sendCommand('cancel_torrent', { info_hash: hash });
-                    if (res && res.success) {
+                    const cancelRes = await sendCommand('cancel_torrent', { info_hash: infoHash });
+                    if (cancelRes && cancelRes.success) {
                         showToast('Download stopped', 'info');
                         fetchStatus();
                     }
@@ -214,11 +233,12 @@
             }
         }
 
-        async function deleteTorrentAndFiles(hash) {
-            if (confirm('DANGER: This will PERMANENTLY delete the torrent and ALL associated files from disk. Proceed?')) {
+        async function deleteTorrentAndFiles(infoHash) {
+            const msg = 'DANGER: This will PERMANENTLY delete the torrent and ALL associated files from disk. Proceed?';
+            if (confirm(msg)) {
                 try {
-                    const res = await sendCommand('delete_torrent_and_files', { info_hash: hash });
-                    if (res && res.success) {
+                    const delRes = await sendCommand('delete_torrent_and_files', { info_hash: infoHash });
+                    if (delRes && delRes.success) {
                         showToast('Torrent and files deleted', 'success');
                         fetchStatus();
                     } else {
@@ -230,13 +250,13 @@
             }
         }
 
-        async function openFolder(hash) {
+        async function openFolder(infoHash) {
             try {
-                const res = await sendCommand('open_folder', { info_hash: hash });
-                if (res.success) {
+                const openRes = await sendCommand('open_folder', { info_hash: infoHash });
+                if (openRes.success) {
                     showToast('Opening folder...', 'success');
                 } else {
-                    showToast(res.message || 'Failed to open folder', 'error');
+                    showToast(openRes.message || 'Failed to open folder', 'error');
                 }
             } catch (err) {
                 console.error(err);
@@ -247,17 +267,17 @@
         async function changeDir() {
             showToast('Opening folder selector...', 'info');
             try {
-                const selData = await window.electronAPI.invoke('select-dir');
-                if (selData.cancelled) {
+                const dirData = await window.electronAPI.invoke('select-dir');
+                if (dirData.cancelled) {
                     showToast('Selection cancelled', 'info');
                     return;
                 }
 
-                const newDir = selData.path;
-                if (!newDir) return;
+                const pathString = dirData.path;
+                if (!pathString) return;
 
-                const res = await sendCommand('set_config', { download_dir: newDir });
-                if (res.success) {
+                const configRes = await sendCommand('set_config', { download_dir: pathString });
+                if (configRes.success) {
                     showToast('Download directory updated', 'success');
                     fetchConfig();
                 } else {
@@ -269,13 +289,13 @@
             }
         }
 
-        function showToast(message, type = 'info') {
-            const toast = document.getElementById('toast');
-            if (!toast) return;
-            toast.textContent = message;
-            toast.className = `toast show ${type}`;
+        function showToast(msg, toastType = 'info') {
+            const toastElement = document.getElementById('toast');
+            if (!toastElement) return;
+            toastElement.textContent = msg;
+            toastElement.className = `toast show ${toastType}`;
             setTimeout(() => {
-                toast.className = 'toast';
+                toastElement.className = 'toast';
             }, 3000);
         }
 
