@@ -138,6 +138,8 @@ class TorrentManager:
         """
         status_list = []
         
+        print(f"DEBUG: get_all_status called. Active: {len(self.downloads)}, Cancelled: {len(self.cancelled)}", file=sys.stderr)
+        
         # Snapshot keys to avoid runtime modification issues during iteration
         for info_hash in list(self.downloads.keys()):
             try:
@@ -148,6 +150,8 @@ class TorrentManager:
                 s = handle.status()
                 state_str = str(s.state)
                 is_paused = s.paused
+                print(f"DEBUG: Torrent {s.name} - Paused: {is_paused}, State: {state_str}, Hash: {info_hash}", file=sys.stderr)
+                
                 
                 if is_paused and state_str != "checking_resume_data":
                     state_str = "Paused"
@@ -175,7 +179,8 @@ class TorrentManager:
                 })
             except Exception as e:
                 # Log error but don't crash status loop
-                # print(f"Error getting status for {info_hash}: {e}", file=sys.stderr)
+                print(f"Error getting status for {info_hash}: {e}", file=sys.stderr)
+
                 pass
 
         # Add cancelled torrents for UI visibility
