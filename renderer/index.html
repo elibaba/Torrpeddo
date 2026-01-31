@@ -39,20 +39,11 @@
     <script>
         /**
          * renderer/index.html - Frontend Logic
-         * 
-         * This script manages the user interface and communicates with the 
-         * Python backend via the Electron context bridge (window.electronAPI).
          */
 
-        // Map to keep track of pending IPC requests and their promise handlers
         const pendingRequests = new Map();
 
-        /**
-         * IPC Response Listener:
-         * Listens for 'python-data' messages sent from the main process.
-         */
         window.electronAPI.receive('python-data', (data) => {
-            // If the message has a matching ID, resolve the corresponding promise
             if (data.id && pendingRequests.has(data.id)) {
                 const { resolve, reject } = pendingRequests.get(data.id);
                 pendingRequests.delete(data.id);
@@ -61,21 +52,14 @@
             }
         });
 
-        /**
-         * sendCommand: Helper function to send commands to Python via IPC.
-         * Returns a Promise that resolves when Python returns a response.
-         */
         function sendCommand(command, args = {}) {
-            const id = Math.random().toString(36).substr(2, 9); // Generate a unique request ID
+            const id = Math.random().toString(36).substr(2, 9);
             return new Promise((resolve, reject) => {
                 pendingRequests.set(id, { resolve, reject });
                 window.electronAPI.send('to-python', { id, command, args });
             });
         }
 
-        /**
-         * fetchStatus: Polls the backend for live torrent metrics.
-         */
         async function fetchStatus() {
             try {
                 const torrents = await sendCommand('get_status');
@@ -85,9 +69,6 @@
             }
         }
 
-        /**
-         * fetchConfig: Retrieves current configuration settings (e.g. download directory).
-         */
         async function fetchConfig() {
             try {
                 const data = await sendCommand('get_config');
@@ -97,9 +78,6 @@
             }
         }
 
-        /**
-         * renderTorrents: Dynamically updates the UI list of active downloads.
-         */
         function renderTorrents(torrents) {
             const container = document.getElementById('torrent-container');
             if (!torrents || torrents.length === 0) {
@@ -121,17 +99,16 @@
                         <div class="stat-item">↑ ${t.upload_rate.toFixed(1)} kB/s</div>
                         <div class="stat-item">👥 ${t.num_peers} peers</div>
                         <div class="stat-item" style="margin-left: auto;">${t.progress.toFixed(1)}%</div>
-
+                        
                         ${!t.is_cancelled ? `
                             ${t.is_paused
-                    ? `<button onclick="resumeTorrent('${t.info_hash}')" style="background: transparent; padding: 0; color: var(--text-main); font-size: 0.75rem; margin-right: 1rem;">Resume</button>`
-                    : `<button onclick="pauseTorrent('${t.info_hash}')" style="background: transparent; padding: 0; color: var(--text-muted); font-size: 0.75rem; margin-right: 1rem;">Pause</button>`
+                                ? `<button onclick="resumeTorrent('${t.info_hash}')" style="background: transparent; padding: 0; color: var(--text-main); font-size: 0.75rem; margin-right: 1rem;">Resume</butto                            : `<button onclick="pauseTorrent('${t.info_hash}')" style="background: transparent; padding: 0; color: var(--text-muted); font-size: 0.75rem; margin-right: 1rem;">Pause</button>`
                             }
-                            <button onclick="cancelTorrent('${t.info_hash}')" style="background: transparent; padding: 0; color: #f97316; font-size: 0.75rem; margin-right: 1rem;">Cancel</button>
+                            <button onclick="deleteTorrentAndFiles('${t.info_hash}')" style="background: transparent; padding: 0; color: #ef4444; font-size: 0.75rem; margin-right                files</button>
+                            <button onclick="cancelTorrent('${t.info_hash}')" style="background: transparent; padding: 0; color: #f97316; font-size: 0.75rem; margin-right: 1rem;">Stop</button>
                             ${t.is_seeding ? `<button onclick="openFolder('${t.info_hash}')" style="background: transparent; padding: 0; color: var(--success); font-size: 0.75rem; margin-right: 1rem;">Open Folder</button>` : ''}
-                            ${t.is_seeding ? `<button onclick="removeTorrent('${t.info_hash}')" style="background: transparent; padding: 0; color: #ef4444; font-size: 0.75rem;">Remove</button>` : ''}
                         ` : `
-                            <button onclick="deleteCancelledFiles('${t.info_hash}')" style="background: transparent; padding: 0; color: #ef4444; font-size: 0.75rem; margin-right: 1rem;">Delete Files</button>
+                            <button onclick="deleteTorrentAndFiles('${t.info_hash}')" style="background: transparent; padding: 0; color: #ef4444; font-size: 0.75rem; margin-right: 1rem;">Delete Files</button>
                             <button onclick="removeTorrent('${t.info_hash}')" style="background: transparent; padding: 0; color: var(--text-muted); font-size: 0.75rem;">Dismiss</button>
                         `}
                     </div>
@@ -139,9 +116,6 @@
             `).join('');
         }
 
-        /**
-         * addMagnet: Grabs the magnet URL from the input and sends it to the backend.
-         */
         async function addMagnet() {
             const magnet = document.getElementById('magnet-input').value;
             if (!magnet) return;
@@ -163,10 +137,6 @@
             }
         }
 
-        /**
-         * uploadTorrent: Handles .torrent file selection.
-         * We now use the native Electron file picker for better OS integration.
-         */
         async function uploadTorrent() {
             showToast('Opening torrent selector...', 'info');
             try {
@@ -192,39 +162,10 @@
             }
         }
 
-        /**
-         * removeTorrent, pauseTorrent, resumeTorrent, openFolder:
-         * Action handlers that send specific commands to the Python TorrentManager.
-         */
         async function removeTorrent(hash) {
-            if (confirm('Are you sure you want to remove this torrent?')) {
+            if (confirm('Are you sure you want to remove this torrent from the list?')) {
                 await sendCommand('remove_torrent', { info_hash: hash });
                 fetchStatus();
-            }
-        }
-
-        async function changeDir() {
-            showToast('Opening folder selector...', 'info');
-            try {
-                const selData = await window.electronAPI.invoke('select-dir');
-                if (selData.cancelled) {
-                    showToast('Selection cancelled', 'info');
-                    return;
-                }
-
-                const newDir = selData.path;
-                if (!newDir) return;
-
-                const res = await sendCommand('set_config', { download_dir: newDir });
-                if (res.success) {
-                    showToast('Download directory updated', 'success');
-                    fetchConfig();
-                } else {
-                    showToast('Invalid directory', 'error');
-                }
-            } catch (err) {
-                console.error(err);
-                showToast('Failed to open selector', 'error');
             }
         }
 
@@ -238,27 +179,23 @@
             fetchStatus();
         }
 
-            async function cancelTorrent(hash) {
-                if (confirm('Are you sure you want to cancel this download?')) {
-                    const res = await sendCommand('cancel_torrent', { info_hash: hash });
-                    if (res.success) {
-                        showToast('Download cancelled', 'info');
-                        fetchStatus();
-                    }
-                }
+        async function cancelTorrent(hash) {
+                          nfirm('Stop download and move to canc                    )) {
+                const res = await sendCommand('cancel                     info_hash: has                                      if (res.success) {
+                                           st('Download stopped', 'info');
+                    fetchSta                                       }
             }
+        }
 
-            async function deleteCancelledFiles(hash) {
-                if (confirm('Are you sure you want to delete the files for this torrent?')) {
-                    const res = await sendCommand('delete_cancelled_files', { info_hash: hash });
-                    if (res.success) {
-                        showToast('Files deleted successfully', 'success');
-                        fetchStatus();
-                    } else {
-                        showToast('Failed to delete files', 'error');
-                    }
+        async function deleteTorrent                    
+            if (co                        will PERMANENTLY delete the torrent and                        s from disk. Pr                                      ns            awa            ommand('delete_torrent_and_files', { info_has                                if (res.success) {
+                    showToast('Torrent and files deleted', 'success');
+                    fetchStatus();
+                } else {
+                    showToast('Failed to delete files', 'error');
                 }
             }
+        }
 
         async function openFolder(hash) {
             try {
@@ -274,9 +211,25 @@
             }
         }
 
-        /**
-         * UI Helper: Shows a temporary toast notification.
-         */
+        async function changeDir() {
+                                ng                ctor...', 'info'                    ry {
+                                    await window.electronAPI.invoke('se                                             elData.cancelled) {
+                         howToast('Selection cancelled', 'info');
+                        return                      }
+
+                const newDir = selData.path;
+                                 return;
+
+                                        ndCommand('set_config', { download_dir: ne                             if                                             showToast('Download director                    cess');
+                                  g();
+                } else {
+                    showToast('Invalid di                    ');
+                                       ch (err) {
+                console.error(err);
+                             ('Failed to ope                    ror');
+            }
+        }
+
         function showToast(message, type = 'info') {
             const toast = document.getElementById('toast');
             toast.textContent = message;
@@ -286,7 +239,6 @@
             }, 3000);
         }
 
-        // Initial setup and polling interval
         fetchConfig();
         setInterval(fetchStatus, 2000);
     </script>

@@ -195,42 +195,59 @@ class TorrentManager:
         return False
 
     def cancel_torrent(self, info_hash):
-        """Stops a torrent and moves it to the cancelled state."""
+        """Stops a torrent and moves it to the cancelled state without deleting files."""
         with self._lock:
             if info_hash in self.downloads:
                 handle = self.downloads.pop(info_hash)
                 s = handle.status()
-                # Store data for cleanup later
+                # Store data for potential cleanup later
                 self.cancelled[info_hash] = {
                     'name': s.name,
                     'save_path': s.save_path
                 }
+                # Unset auto-managed to prevent session-level restarts before removal
+                handle.unset_flags(lt.torrent_flags.auto_managed)
                 self.ses.remove_torrent(handle)
                 print(f"Torrent cancelled: {info_hash}", file=sys.stderr)
                 return True
         return False
 
-    def delete_cancelled_files(self, info_hash):
-        """Deletes files associated with a cancelled torrent."""
+    def delete_torrent_and_files(self, info_hash):
+        """Completely removes a torrent and deletes its files from disk."""
         with self._lock:
-            if info_hash in self.cancelled:
+            path_to_delete = None
+            
+            if info_hash in self.downloads:
+                handle = self.downloads.pop(info_hash)
+                s = handle.status()
+                path_to_delete = os.path.join(s.save_path, s.name)
+                # Stop and remove
+                handle.unset_flags(lt.torrent_flags.auto_managed)
+                handle.pause()
+                self.ses.remove_torrent(handle)
+            elif info_hash in self.cancelled:
                 data = self.cancelled.pop(info_hash)
-                full_path = os.path.join(data['save_path'], data['name'])
+                path_to_delete = os.path.join(data['save_path'], data['name'])
+            
+            if path_to_delete:
+                # We give the OS a small moment to release any file locks if it was active
+                # although remove_torrent is async, pause() helps.
+                def _deferred_delete(path):
+                    import time
+                    time.sleep(1.0) # Small grace period for handles to close
+                    try:
+                        if os.path.exists(path):
+                            if os.path.isdir(path):
+                                shutil.rmtree(path)
+                            else:
+                                os.remove(path)
+                            print(f"Disk cleanup complete for: {path}", file=sys.stderr)
+                    except Exception as e:
+                        print(f"Deferred deletion error for {path}: {e}", file=sys.stderr)
                 
-                try:
-                    if os.path.exists(full_path):
-                        if os.path.isdir(full_path):
-                            shutil.rmtree(full_path)
-                        else:
-                            os.remove(full_path)
-                        print(f"Files deleted for cancelled torrent: {full_path}", file=sys.stderr)
-                        return True
-                    else:
-                        print(f"Files already missing for cancelled torrent: {full_path}", file=sys.stderr)
-                        return True # Already gone is fine
-                except Exception as e:
-                    print(f"Error deleting files: {e}", file=sys.stderr)
-                    return False
+                # Run in thread to not block the IPC bridge
+                threading.Thread(target=_deferred_delete, args=(path_to_delete,), daemon=True).start()
+                return True
         return False
 
     def open_folder(self, info_hash):

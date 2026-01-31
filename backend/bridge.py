@@ -72,10 +72,10 @@ def main():
                 info_hash = args.get('info_hash')
                 success = manager.cancel_torrent(info_hash)
                 response['data'] = {'success': success}
-            elif cmd == 'delete_cancelled_files':
-                # Deletes the underlying files for a cancelled download
+            elif cmd == 'delete_torrent_and_files':
+                # Deletes the underlying files for a torrent (active or cancelled)
                 info_hash = args.get('info_hash')
-                success = manager.delete_cancelled_files(info_hash)
+                success = manager.delete_torrent_and_files(info_hash)
                 response['data'] = {'success': success}
             elif cmd == 'pause_torrent':
                 # Pauses an active download

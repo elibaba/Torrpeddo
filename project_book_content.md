@@ -57,8 +57,8 @@ At the heart of Torrpeddo is libtorrent, a feature-complete BitTorrent implement
 
 Torrpeddo provides robust tools for managing the lifecycle of downloads and maintaining disk health.
 
-### 1. Torrent Cancellation
-Users can stop an active download at any time by clicking the "Cancel" button. This operation:
+### 1. Stopping Downloads
+Users can stop an active download at any time. This operation:
 - Safely removes the torrent from the active `libtorrent` session.
 - Stops all network and disk I/O associated with the task.
 - Transitions the torrent to a "Cancelled" state in the UI for further action.
@@ -68,10 +68,10 @@ Torrpeddo utilizes explicit flag management to ensure reliable pausing.
 - **Precision Pause**: When a user pauses a torrent, the system explicitly unsets the `auto_managed` flag. This prevents the libtorrent internal queue manager from automatically resuming the task, ensuring the download remains stopped until the user explicitly intervenes.
 - **Resume Integrity**: Resuming a torrent re-enables auto-management, allowing the engine to optimize peer connections and throughput immediately.
 
-### 3. Disk Cleanup & File Deletion
-For cancelled torrents, Torrpeddo offers a dedicated "Delete Files" operation.
-- Target Removal: Deletes the specific files or directories associated with the cancelled torrent.
-- State Sync: Once files are deleted, the torrent entry is removed from the session tracking, keeping the UI clean.
+### 3. Destruction & Disk Cleanup
+Torrpeddo offers a powerful "Delete torrent and files" operation for both active and stopped downloads.
+- **Atomic Cleanup**: Simultaneously removes the torrent from the session and deletes all associated files and directories from the disk.
+- **Safety**: Utilizes asynchronous background threads for disk operations to ensure the UI remains responsive even during large data deletions.
 
 ---
 
