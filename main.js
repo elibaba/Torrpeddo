@@ -116,6 +116,20 @@ ipcMain.handle('select-torrent', async () => {
     return { cancelled: false, path: result.filePaths[0] };
 });
 
+ipcMain.handle('show-delete-dialog', async () => {
+    // Returns index: 0 = Yes (Delete Files), 1 = No (Keep Files), 2 = Cancel
+    const result = await dialog.showMessageBox(mainWindow, {
+        type: 'warning',
+        buttons: ['Yes, delete files', 'No, keep files', 'Cancel'],
+        defaultId: 2,
+        cancelId: 2,
+        title: 'Delete Torrent?',
+        message: 'Delete also the downloaded files?',
+        detail: 'This action cannot be undone if you choose to delete files.'
+    });
+    return { response: result.response };
+});
+
 ipcMain.on('open-external', (event, url) => {
     shell.openExternal(url);
 });

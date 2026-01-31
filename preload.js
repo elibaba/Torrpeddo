@@ -35,7 +35,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
      * invoke: Allows the renderer to call an IPC handler and wait for a result.
      */
     invoke: (channel, ...args) => {
-        let validChannels = ['select-dir', 'select-torrent'];
+        let validChannels = ['select-dir', 'select-torrent', 'show-delete-dialog'];
         if (validChannels.includes(channel)) {
             return ipcRenderer.invoke(channel, ...args);
         }
