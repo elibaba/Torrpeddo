@@ -29,6 +29,7 @@ def main():
                 break
             
             try:
+                # print(f"DEBUG: Received line: {line!r}", file=sys.stderr)
                 command_data = json.loads(line)
                 cmd = command_data.get('command')
                 args = command_data.get('args', {})
