@@ -40,13 +40,17 @@
             text-align: center;
         }
 
-        h1 {
-            font-size: 2.5rem;
-            font-weight: 800;
+        h1.logo-text {
+            font-size: 4rem;
+            font-weight: 900;
             margin: 0;
-            background: linear-gradient(to right, #60a5fa, #818cf8);
+            background: linear-gradient(135deg, #60a5fa, #a78bfa, #f472b6);
             -webkit-background-clip: text;
+            background-clip: text;
             -webkit-text-fill-color: transparent;
+            letter-spacing: -2px;
+            text-transform: uppercase;
+            filter: drop-shadow(0 0 20px rgba(96, 165, 250, 0.4));
         }
 
         .input-group {
@@ -177,7 +181,7 @@
 <body>
     <div class="container">
         <header>
-            <img src="../assets/banner.png" alt="Torrpeddo" style="max-height: 80px; margin-bottom: 1rem;">
+            <h1 class="logo-text">TORRPEDDO</h1>
         </header>
 
         <section class="input-group">
