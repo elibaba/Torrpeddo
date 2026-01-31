@@ -53,6 +53,28 @@
             filter: drop-shadow(0 0 20px rgba(96, 165, 250, 0.4));
         }
 
+        .subtitle {
+            font-size: 1.1rem;
+            color: var(--text-muted);
+            margin-top: -0.5rem;
+            margin-bottom: 0.75rem;
+            font-weight: 400;
+            letter-spacing: 0.5px;
+        }
+
+        .browser-link {
+            font-size: 0.9rem;
+            color: var(--accent);
+            text-decoration: none;
+            opacity: 0.8;
+            transition: all 0.2s;
+            border-bottom: 1px dashed var(--accent);
+        }
+        .browser-link:hover {
+            opacity: 1;
+            border-bottom-style: solid;
+        }
+
         .input-group {
             background: var(--bg-card);
             border: 1px solid var(--border);
@@ -182,6 +204,8 @@
     <div class="container">
         <header>
             <h1 class="logo-text">TORRPEDDO</h1>
+            <p class="subtitle">A free lightweight torrent client</p>
+            <a href="#" class="browser-link" onclick="openLink('https://webtorrent.io/free-torrents')">Browse free torrents</a>
         </header>
 
         <section class="input-group">
@@ -220,6 +244,10 @@
                 window.electronAPI.send('to-python', { id, command, args });
             });
         }
+
+            function openLink(url) {
+                window.electronAPI.send('open-external', url);
+            }
 
         // Actions
         async function uploadTorrentFile() {
