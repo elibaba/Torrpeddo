@@ -11,6 +11,8 @@ An experimental, single-user torrent client built with Python and Electron.
 - **Magnet Link Support**: Easily add downloads via magnet URIs.
 - **.torrent File Upload**: Support for traditional torrent files.
 - **Real-time Monitoring**: Live status updates for download/upload speeds, progress, and peers.
+- **Pause / Resume**: Standard media-player style controls for stopping and starting downloads.
+- **Safe File Deletion**: Native dialogs to prevent accidental data loss when removing tasks.
 - **Customizable Destination**: Set your download folder directly from the app.
 - **Premium UI**: Modern dark-mode interface with glassmorphism and smooth animations.
 

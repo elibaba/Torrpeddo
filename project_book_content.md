@@ -57,21 +57,18 @@ At the heart of Torrpeddo is libtorrent, a feature-complete BitTorrent implement
 
 Torrpeddo provides robust tools for managing the lifecycle of downloads and maintaining disk health.
 
-### 1. Stopping Downloads
-Users can stop an active download at any time. This operation:
-- Safely removes the torrent from the active `libtorrent` session.
-- Stops all network and disk I/O associated with the task.
-- Transitions the torrent to a "Cancelled" state in the UI for further action.
+### 1. Simplified Control Flow
+Torrpeddo adopts a streamlined mental model for torrent management:
+- **Stop = Pause**: Stopping a download puts it into a "Paused" state. It remains in the session but halts all network activity.
+- **Resume**: Paused downloads can be instantly resumed, re-enabling auto-management and peer connections.
 
-### 2. State Management (Pause/Resume)
-Torrpeddo utilizes explicit flag management to ensure reliable pausing. 
-- **Precision Pause**: When a user pauses a torrent, the system explicitly unsets the `auto_managed` flag. This prevents the libtorrent internal queue manager from automatically resuming the task, ensuring the download remains stopped until the user explicitly intervenes.
-- **Resume Integrity**: Resuming a torrent re-enables auto-management, allowing the engine to optimize peer connections and throughput immediately.
-
-### 3. Destruction & Disk Cleanup
-Torrpeddo offers a powerful "Delete torrent and files" operation for both active and stopped downloads.
-- **Atomic Cleanup**: Simultaneously removes the torrent from the session and deletes all associated files and directories from the disk.
-- **Safety**: Utilizes asynchronous background threads for disk operations to ensure the UI remains responsive even during large data deletions.
+### 2. Destruction & Disk Safety
+To prevent accidental data loss, Torrpeddo implements a secure native deletion workflow:
+- **Native Confirmation**: Deleting a torrent triggers a system-level dialog (via Electron IPC).
+- **Flexible Choices**: Users can choose to:
+    - **Delete Task Only**: Removes the torrent from the client but preserves the downloaded files on disk.
+    - **Delete Task + Files**: Atomically removes the torrent and performs a permanent disk cleanup.
+- **Threaded Safety**: All file deletion operations are offloaded to background threads to keep the UI responsive.
 
 ---
 
