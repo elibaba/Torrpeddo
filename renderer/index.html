@@ -187,22 +187,24 @@
         async function cancelTorrent(hash) {
             if (confirm('Stop download a                    ancelled list?')) {
                 try {
-                                   es = await send                'ca                rent', { info_hash: hash });
-                            if (res && res.success) {
-                        showToas                    stopped', 'info                                            fetchStatus();
-                                              } catch (err) {
-                    console.err                                 }
+                                           es = await send                        'ca                        rent', { info_hash: hash });
+                                    if (res && res.success) {
+                        showToas                                stopped', 'info                                                                    fetchStatus();
+                                                          } catch (err) {
+                    console.error(err);
+                }
             }
         }
 
         async function deleteTorrentAndFiles(hash) {
-                               NGER: This will PERMANENTL                             ALL associated files from disk. Procee                            try {
-                                  =                    nd('delete_torre                        o_hash: hash });
-                        i                s.             {
-                            showToast('Torrent and files                 uccess');
+                                   NGER: This will PERMANENTL                                 ALL associated files from disk. Procee                                try {
+                                      =                        nd('delete_torre                            o_hash: hash });
+                            i                    s.                 {
+                                showToast('Torrent and files                     uccess');
                         fetchStatus();
                     } else {
-                        showToast(                    e file                                      }
+                        showToast('Failed to delete files', 'error');
+                    }
                 } catch (err) {
                     console.error(err);
                 }
@@ -386,6 +388,7 @@
 
         .badge-downloading { background: rgba(56, 189, 248, 0.2); color: #38bdf8; }
         .badge-seeding { background: rgba(34, 197, 94, 0.2); color: #22c55e; }
+        .badge-cancelled { background: rgba(249, 115, 22, 0.2); color: #f97316; }
 
         .progress-container {
             height: 8px;
@@ -448,11 +451,6 @@
             border-color: var(--border);
             opacity: 0.8;
             background: rgba(30, 41, 59, 0.4);
-        }
-
-        .badge-cancelled {
-            background: rgba(249, 115, 22, 0.2);
-            color: #f97316;
         }
 
         .logo-area {
