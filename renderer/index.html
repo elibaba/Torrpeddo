@@ -1,294 +1,32 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Torrpeddo | Premium Torrent Client</title>
-    <link rel="stylesheet" href="static/css/styles.css">
+    <title>Torrpeddo</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-</head>
-
-<body>
-    <div class="container">
-        <header>
-            <div class="logo-area">
-                <h1>Torrpeddo</h1>
-                <a href="#" class="browse-link" onclick="window.electronAPI.send('open-external', 'https://webtorrent.io/free-torrents')">Browse Free Torrents →</a>
-            </div>
-            <div id="connection-status" style="font-size: 0.75rem; color: var(--success);">● Connected</div>
-        </header>
-
-        <section class="card">
-            <div class="controls">
-                <input type="text" id="magnet-input" placeholder="Paste magnet link here..."
-                    onkeydown="if(event.key === 'Enter') addMagnet()">
-                <button onclick="addMagnet()">Add Magnet</button>
-                <button onclick="uploadTorrent()">Upload .torrent</button>
-            </div>
-            <div id="toast" class="toast"></div>
-            <div class="destination-bar">
-                <span>Destination: <span id="current-dir"
-                        style="color: var(--text-main);">/Downloads/Torrpeddo</span></span>
-                <button onclick="changeDir()"
-                    style="padding: 0.25rem 0.75rem; font-size: 0.75rem; background: transparent; border: 1px solid var(--accent); color: var(--accent); position: relative; z-index: 999; cursor: pointer;">Change</button>
-            </div>
-        </section>
-
-        <section class="torrent-list" id="torrent-container">
-            <!-- Torrents will be injected here -->
-        </section>
-    </div>
-
-    <script>
-        /**
-         * renderer/index.html - Frontend Logic
-         */
-
-        const pendingRequests = new Map();
-
-        window.electronAPI.receive('python-data', (data) => {
-            if (data.id && pendingRequests.has(data.id)) {
-                const { resolve, reject } = pendingRequests.get(data.id);
-                pendingRequests.delete(data.id);
-                if (data.error) reject(data.error);
-                else resolve(data.data);
-            }
-        });
-
-        function sendCommand(command, args = {}) {
-            const id = Math.random().toString(36).substr(2, 9);
-            return new Promise((resolve, reject) => {
-                pendingRequests.set(id, { resolve, reject });
-                window.electronAPI.send('to-python', { id, command, args });
-            });
-        }
-
-        async function fetchStatus() {
-            try {
-                const torrentData = await sendCommand('get_status');
-                renderTorrents(torrentData);
-            } catch (err) {
-                console.error('Failed to fetch status', err);
-            }
-        }
-
-        async function fetchConfig() {
-            try {
-                const configData = await sendCommand('get_config');
-                document.getElementById('current-dir').textContent = configData.download_dir;
-            } catch (err) {
-                console.error('Failed to fetch config', err);
-            }
-        }
-
-        function renderTorrents(allTorrents) {
-            const container = document.getElementById('torrent-container');
-            if (!allTorrents || !Array.isArray(allTorrents) || allTorrents.length === 0) {
-                container.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 2rem;">No downloads</div>';
-                return;
-            }
-
-            let finalHtml = '';
-            allTorrents.forEach(task => {
-                const isStopped = task.is_paused || task.is_cancelled;
-                finalHtml += renderTorrentItem(task, isStopped);
-            });
-
-            container.innerHTML = finalHtml;
-        }
-
-        function renderTorrentItem(t, isStopped) {
-            let stateLabel = 'badge-downloading';
-            if (t.is_cancelled) stateLabel = 'badge-cancelled';
-            else if (t.is_paused) stateLabel = 'badge-paused';
-            else if (t.is_seeding) stateLabel = 'badge-seeding';
-
-            const progressPercent = t.progress;
-            
-            return `
-                <div class="card torrent-item ${isStopped ? 'stopped' : 'active'}">
-                    <div class="torrent-header">
-                        <div style="font-weight: 600;">${t.name || 'Fetching metadata...'}</div>
-                        <div class="badge ${stateLabel}">${t.state}</div>
-                    </div>
-                    <div class="progress-container">
-                        <div class="progress-bar" style="width: ${progressPercent}%"></div>
-                    </div>
-                    <div class="stats">
-                        <div class="stat-item">↓ ${t.download_rate.toFixed(1)} kB/s</div>
-                        <div class="stat-item">↑ ${t.upload_rate.toFixed(1)} kB/s</div>
-                        <div class="stat-item">👥 ${t.num_peers} peers</div>
-                        <div class="stat-item" style="margin-left: auto;">${progressPercent.toFixed(1)}%</div>
-                        
-                        ${!isStopped ? `
-                            <button onclick="pauseTorrent('${t.info_hash}')" style="background: transparent; padding: 0; color: #f97316; font-size: 0.75rem; margin-right: 1rem;">Pause</button>
-                            ${t.is_seeding ? `<button onclick="openFolder('${t.info_hash}')" style="background: transparent; padding: 0; color: var(--success); font-size: 0.75rem; margin-right: 1rem;">Open Folder</button>` : ''}
-                        ` : `
-                            ${!t.is_cancelled ? `<button onclick="resumeTorrent('${t.info_hash}')" style="background: transparent; padding: 0; color: var(--success); font-size: 0.75rem; margin-right: 1rem;">Resume</button>` : ''}
-                            <button onclick="handleDelete('${t.info_hash}')" style="background: transparent; padding: 0; color: #ef4444; font-size: 0.75rem; margin-right: 1rem;">Delete</button>
-                            ${t.is_seeding ? `<button onclick="openFolder('${t.info_hash}')" style="background: transparent; padding: 0; color: var(--success); font-size: 0.75rem; margin-right: 1rem;">Open Folder</button>` : ''}
-                        `}
-                    </div>
-                </div>`;
-        }
-
-        async function addMagnet() {
-            const magnetValue = document.getElementById('magnet-input').value;
-            if (!magnetValue) return;
-            showToast('Adding magnet link...', 'info');
-            try {
-                const addRes = await sendCommand('add_magnet', { magnet_url: magnetValue });
-                if (addRes.success) {
-                    document.getElementById('magnet-input').value = '';
-                    showToast('Magnet link added successfully', 'success');
-                    fetchStatus();
-                } else {
-                    showToast(addRes.error || 'Failed to add magnet link', 'error');
-                }
-            } catch (err) {
-                showToast('Bridge error: ' + err, 'error');
-                console.error(err);
-            }
-        }
-
-        async function uploadTorrent() {
-            showToast('Opening torrent selector...', 'info');
-            try {
-                const uploadResult = await window.electronAPI.invoke('select-torrent');
-                if (uploadResult.cancelled) {
-                    showToast('Selection cancelled', 'info');
-                    return;
-                }
-                const path = uploadResult.path;
-                showToast('Adding torrent file...', 'info');
-                const fileRes = await sendCommand('add_torrent_file', { filepath: path });
-                if (fileRes.success) {
-                    showToast('Torrent file added successfully', 'success');
-                    fetchStatus();
-                } else {
-                    showToast(fileRes.error || 'Failed to add torrent', 'error');
-                }
-            } catch (err) {
-                console.error(err);
-                showToast('Bridge error', 'error');
-            }
-        }
-
-        async function pauseTorrent(infoHash) {
-            await sendCommand('pause_torrent', { info_hash: infoHash });
-            fetchStatus();
-        }
-
-        async function resumeTorrent(infoHash) {
-            await sendCommand('resume_torrent', { info_hash: infoHash });
-            fetchStatus();
-        }
-
-        async function handleDelete(infoHash) {
-            try {
-                const result = await window.electronAPI.invoke('show-delete-dialog');
-                if (result.confirmed) {
-                    if (result.deleteFiles) {
-                        // Delete Torrent AND Files
-                        const delRes = await sendCommand('delete_torrent_and_files', { info_hash: infoHash });
-                        if (delRes && delRes.success) {
-                            showToast('Torrent and files deleted', 'success');
-                            fetchStatus();
-                        } else {
-                            showToast('Failed to delete files', 'error');
-                        }
-                    } else {
-                        // Delete Torrent ONLY
-                        const delRes = await sendCommand('remove_torrent', { info_hash: infoHash });
-                        if (delRes && delRes.success) {
-                            showToast('Torrent removed', 'info');
-                            fetchStatus();
-                        } else {
-                            showToast('Failed to remove torrent', 'error');
-                        }
-                    }
-                }
-            } catch (err) {
-                console.error(err);
-                showToast('Delete failed', 'error');
-            }
-        }
-
-        async function openFolder(infoHash) {
-            try {
-                const openRes = await sendCommand('open_folder', { info_hash: infoHash });
-                if (openRes.success) {
-                    showToast('Opening folder...', 'success');
-                } else {
-                    showToast(openRes.message || 'Failed to open folder', 'error');
-                }
-            } catch (err) {
-                console.error(err);
-                showToast('Bridge error', 'error');
-            }
-        }
-
-        async function changeDir() {
-            showToast('Opening folder selector...', 'info');
-            try {
-                const dirData = await window.electronAPI.invoke('select-dir');
-                if (dirData && dirData.error) {
-                    alert("IPC Error: " + dirData.error);
-                    return;
-                }
-                if (dirData.cancelled) {
-                    showToast('Selection cancelled', 'info');
-                    return;
-                }
-                const pathString = dirData.path;
-                if (!pathString) return;
-                const configRes = await sendCommand('set_config', { download_dir: pathString });
-                if (configRes.success) {
-                    showToast('Download directory updated', 'success');
-                    fetchConfig();
-                } else {
-                    showToast('Invalid directory', 'error');
-                }
-            } catch (err) {
-                console.error(">> [Renderer] changeDir Exception:", err);
-                alert("Dialog failed to open. Check terminal for errors.");
-            }
-        }
-
-        function showToast(msg, toastType = 'info') {
-            const toastElement = document.getElementById('toast');
-            if (!toastElement) return;
-            toastElement.textContent = msg;
-            toastElement.className = `toast show ${toastType}`;
-            setTimeout(() => {
-                toastElement.className = 'toast';
-            }, 3000);
-        }
-
-        fetchConfig();
-        setInterval(fetchStatus, 2000);
-    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-main: #0f172a;
-            --bg-card: rgba(30, 41, 59, 0.7);
-            --text-main: #f8fafc;
-            --text-muted: #94a3b8;
-            --accent: #38bdf8;
-            --success: #22c55e;
+            --bg-main: #111827;
+            --bg-card: rgba(31, 41, 55, 0.7);
+            --text-main: #f9fafb;
+            --text-muted: #9ca3af;
+            --accent: #60a5fa;
+            --success: #34d399;
+            --danger: #ef4444;
+            --paused: #fbbf24;
             --border: rgba(255, 255, 255, 0.1);
         }
 
         body {
-            font-family: 'Inter', -apple-system, sans-serif;
+            font-family: 'Outfit', sans-serif;
             background-color: var(--bg-main);
             color: var(--text-main);
             margin: 0;
             padding: 2rem;
-            line-height: 1.5;
+            min-height: 100vh;
         }
 
         .container {
@@ -297,211 +35,248 @@
         }
 
         header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
             margin-bottom: 2rem;
+            text-align: center;
         }
 
         h1 {
-            font-size: 2rem;
+            font-size: 2.5rem;
             font-weight: 800;
             margin: 0;
-            background: linear-gradient(to right, #38bdf8, #818cf8);
+            background: linear-gradient(to right, #60a5fa, #818cf8);
             -webkit-background-clip: text;
-            background-clip: text;
             -webkit-text-fill-color: transparent;
         }
 
-        .card {
+        .input-group {
             background: var(--bg-card);
-            backdrop-filter: blur(12px);
             border: 1px solid var(--border);
             border-radius: 1rem;
             padding: 1.5rem;
-            margin-bottom: 1.5rem;
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
-        }
-
-        .controls {
+            margin-bottom: 2rem;
             display: flex;
             gap: 1rem;
-            margin-bottom: 1rem;
+            backdrop-filter: blur(10px);
         }
 
-        input {
+        input[type="text"] {
             flex: 1;
-            background: rgba(15, 23, 42, 0.5);
+            background: rgba(0, 0, 0, 0.2);
             border: 1px solid var(--border);
             border-radius: 0.5rem;
             padding: 0.75rem 1rem;
             color: white;
-            outline: none;
-            transition: border-color 0.2s;
+            font-family: inherit;
         }
 
-        input:focus {
+        input[type="text"]:focus {
+            outline: none;
             border-color: var(--accent);
         }
 
         button {
-            background: var(--accent);
-            color: #0f172a;
-            border: none;
-            border-radius: 0.5rem;
             padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            border: none;
             font-weight: 600;
             cursor: pointer;
-            transition: transform 0.1s, opacity 0.2s;
+            transition: opacity 0.2s;
+            font-family: inherit;
         }
 
         button:hover {
             opacity: 0.9;
         }
 
-        button:active {
-            transform: scale(0.98);
+        .btn-primary { background: var(--accent); color: #111827; }
+        .btn-upload { background: var(--text-muted); color: #111827; }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-success { background: var(--success); color: #064e3b; }
+        .btn-pause { background: var(--danger); color: white; } /* Red pause button */
+
+        #torrent-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
         }
 
-        .destination-bar {
+        .torrent-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 0.75rem;
+            padding: 1.25rem;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            font-size: 0.875rem;
-            color: var(--text-muted);
-            padding-top: 1rem;
-            border-top: 1px solid var(--border);
-        }
-
-        .torrent-item {
-            margin-bottom: 1rem;
             transition: transform 0.2s;
         }
-
-        .torrent-item:hover {
+        
+        .torrent-card:hover {
             transform: translateY(-2px);
+            border-color: rgba(255,255,255,0.2);
         }
 
-        .torrent-header {
+        .torrent-info {
+            flex: 1;
+        }
+
+        .torrent-name {
+            font-weight: 600;
+            font-size: 1.1rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .torrent-meta {
+            font-size: 0.85rem;
+            color: var(--text-muted);
             display: flex;
-            justify-content: space-between;
-            margin-bottom: 1rem;
+            gap: 1.5rem;
+        }
+
+        .torrent-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-left: 1.5rem;
         }
 
         .badge {
             font-size: 0.75rem;
-            padding: 0.25rem 0.75rem;
+            padding: 0.25rem 0.5rem;
             border-radius: 9999px;
-            font-weight: 600;
-        }
-
-        .badge-downloading { background: rgba(56, 189, 248, 0.2); color: #38bdf8; }
-        .badge-seeding { background: rgba(34, 197, 94, 0.2); color: #22c55e; }
-        .badge-cancelled { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
-        .badge-paused { background: rgba(249, 115, 22, 0.2); color: #f97316; }
-
-        .progress-container {
-            height: 8px;
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 4px;
-            margin-bottom: 1rem;
-            overflow: hidden;
-        }
-
-        .progress-bar {
-            height: 100%;
-            background: linear-gradient(to right, #38bdf8, #818cf8);
-            border-radius: 4px;
-            transition: width 0.3s ease;
-        }
-
-        .stats {
-            display: flex;
-            gap: 1.5rem;
-            font-size: 0.875rem;
-            color: var(--text-muted);
-            align-items: center;
-        }
-
-        .stat-item {
-            display: flex;
-            align-items: center;
-            gap: 0.4rem;
-        }
-
-        .toast {
-            visibility: hidden;
-            min-width: 250px;
-            margin-left: -125px;
-            background-color: var(--bg-card);
-            backdrop-filter: blur(12px);
-            border: 1px solid var(--border);
-            color: #fff;
-            text-align: center;
-            border-radius: 0.5rem;
-            padding: 1rem;
-            position: fixed;
-            z-index: 1000;
-            left: 50%;
-            bottom: 30px;
-            font-size: 0.875rem;
-            transition: visibility 0s, opacity 0.5s linear;
-            opacity: 0;
-        }
-
-        .toast.show {
-            visibility: visible;
-            opacity: 1;
-        }
-
-        .toast.success { border-color: var(--success); }
-        .toast.error { border-color: #ef4444; }
-
-        .torrent-item.stopped {
-            border-color: var(--border);
-            opacity: 0.8;
-            background: rgba(30, 41, 59, 0.4);
-        }
-
-        .logo-area {
-            display: flex;
-            flex-direction: column;
-            gap: 0.25rem;
-        }
-
-        .browse-link {
-            color: var(--text-muted);
-            text-decoration: none;
-            font-size: 0.75rem;
-            transition: color 0.2s;
-            margin-top: -0.5rem;
-            margin-bottom: 0.5rem;
-        }
-
-        .browse-link:hover {
-            color: var(--success);
-            text-decoration: underline;
-        }
-
-        .section-header {
-            font-size: 0.85rem;
-            font-weight: 800;
+            font-weight: 700;
             text-transform: uppercase;
-            letter-spacing: 0.05em;
-            color: var(--accent);
-            margin-bottom: 1rem;
-            display: flex;
-            align-items: center;
-            gap: 1rem;
         }
 
-        .section-header::after {
-            content: '';
-            flex: 1;
-            height: 1px;
-            background: var(--border);
-        }
+        .badge-active { background: rgba(52, 211, 153, 0.2); color: var(--success); }
+        .badge-paused { background: rgba(251, 191, 36, 0.2); color: var(--paused); }
     </style>
-</body>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Torrpeddo</h1>
+        </header>
 
+        <section class="input-group">
+            <button class="btn-upload" onclick="uploadTorrentFile()">Upload .torrent</button>
+            <input type="text" id="magnet-link" placeholder="Paste magnet link...">
+            <button class="btn-primary" onclick="addMagnet()">Add Magnet</button>
+        </section>
+
+        <div id="torrent-list">
+            <!-- Torrents injected here -->
+        </div>
+    </div>
+
+    <script>
+        // IPC Bridge Logic
+        const pendingReqs = new Map();
+        
+        window.electronAPI.receive('python-data', (data) => {
+            if (data.id && pendingReqs.has(data.id)) {
+                const { resolve, reject } = pendingReqs.get(data.id);
+                pendingReqs.delete(data.id);
+                if (data.error) reject(data.error);
+                else resolve(data.data);
+            }
+        });
+
+        function sendCmd(command, args = {}) {
+            const id = Math.random().toString(36).substr(2, 9);
+            return new Promise((resolve, reject) => {
+                pendingReqs.set(id, { resolve, reject });
+                window.electronAPI.send('to-python', { id, command, args });
+            });
+        }
+
+        // Actions
+        async function uploadTorrentFile() {
+            try {
+                const res = await window.electronAPI.invoke('select-torrent');
+                if (!res.cancelled && res.path) {
+                    await sendCmd('add_torrent_file', { filepath: res.path });
+                    refresh();
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        async function addMagnet() {
+            const url = document.getElementById('magnet-link').value;
+            if (!url) return;
+            try {
+                await sendCmd('add_magnet', { magnet_url: url });
+                document.getElementById('magnet-link').value = '';
+                refresh();
+            } catch (e) { console.error(e); }
+        }
+
+        async function pauseTorrent(infoHash) {
+            await sendCmd('pause_torrent', { info_hash: infoHash });
+            refresh();
+        }
+
+        async function resumeTorrent(infoHash) {
+            await sendCmd('resume_torrent', { info_hash: infoHash });
+            refresh();
+        }
+
+        async function confirmDelete(infoHash) {
+            try {
+                const result = await window.electronAPI.invoke('show-delete-dialog');
+                if (result.confirmed) {
+                    if (result.deleteFiles) {
+                        await sendCmd('delete_torrent_and_files', { info_hash: infoHash });
+                    } else {
+                        await sendCmd('remove_torrent', { info_hash: infoHash });
+                    }
+                    refresh();
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        // Rendering
+        async function refresh() {
+            try {
+                const torrents = await sendCmd('get_status');
+                const list = document.getElementById('torrent-list');
+                
+                if (!torrents || torrents.length === 0) {
+                    list.innerHTML = '<div style="text-align:center; color: var(--text-muted);">No active downloads</div>';
+                    return;
+                }
+
+                list.innerHTML = torrents.map(t => {
+                    const isPaused = t.is_paused;
+                    return `
+                        <div class="torrent-card" style="border-left: 4px solid ${isPaused ? 'var(--paused)' : 'var(--success)'}">
+                            <div class="torrent-info">
+                                <div style="display:flex; align-items:center; gap:0.5rem;">
+                                    <div class="torrent-name">${t.name}</div>
+                                    <span class="badge ${isPaused ? 'badge-paused' : 'badge-active'}">${isPaused ? 'PAUSED' : 'DOWNLOADING'}</span>
+                                </div>
+                                <div class="torrent-meta">
+                                    <span>↓ ${t.download_rate.toFixed(1)} kB/s</span>
+                                    <span>↑ ${t.upload_rate.toFixed(1)} kB/s</span>
+                                    <span>👥 ${t.num_peers} peers</span>
+                                    <span>${t.progress.toFixed(1)}%</span>
+                                </div>
+                            </div>
+                            <div class="torrent-actions">
+                                ${isPaused 
+                                    ? `<button class="btn-success" onclick="resumeTorrent('${t.info_hash}')">Resume</button>
+                                       <button class="btn-upload" onclick="confirmDelete('${t.info_hash}')">Delete</button>`
+                                    : `<button class="btn-pause" onclick="pauseTorrent('${t.info_hash}')">Pause</button>`
+                                }
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } catch (e) { console.error(e); }
+        }
+
+        // Polling
+        setInterval(refresh, 2000);
+        refresh();
+    </script>
+</body>
 </html>
