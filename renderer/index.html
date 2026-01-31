@@ -189,25 +189,25 @@
         async function handleDelete(infoHash) {
             try {
                 const result = await window.electronAPI.invoke('show-delete-dialog');
-                if (result.response === 0) {
-                    // Yes (Delete Files)
-                    const delRes = await sendCommand('delete_torrent_and_files', { info_hash: infoHash });
-                    if (delRes && delRes.success) {
-                        showToast('Torrent and files deleted', 'success');
-                        fetchStatus();
+                if (result.confirmed) {
+                    if (result.deleteFiles) {
+                        // Delete Torrent AND Files
+                        const delRes = await sendCommand('delete_torrent_and_files', { info_hash: infoHash });
+                        if (delRes && delRes.success) {
+                            showToast('Torrent and files deleted', 'success');
+                            fetchStatus();
+                        } else {
+                            showToast('Failed to delete files', 'error');
+                        }
                     } else {
-                        showToast('Failed to delete files', 'error');
-                    }
-                } else if (result.response === 1) {
-                    // No (Keep Files)
-                    const delRes = await sendCommand('cancel_torrent', { info_hash: infoHash });
-                    if (delRes && delRes.success) {
-                        showToast('Torrent stopped (files kept)', 'info');
-                        fetchStatus();
-                    } else {
-                        await sendCommand('remove_torrent', { info_hash: infoHash });
-                        fetchStatus();
-                        showToast('Torrent removed', 'info');
+                        // Delete Torrent ONLY
+                        const delRes = await sendCommand('remove_torrent', { info_hash: infoHash });
+                        if (delRes && delRes.success) {
+                            showToast('Torrent removed', 'info');
+                            fetchStatus();
+                        } else {
+                            showToast('Failed to remove torrent', 'error');
+                        }
                     }
                 }
             } catch (err) {

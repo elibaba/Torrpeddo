@@ -136,17 +136,23 @@ ipcMain.handle('select-torrent', async () => {
 });
 
 ipcMain.handle('show-delete-dialog', async () => {
-    // Returns index: 0 = Yes (Delete Files), 1 = No (Keep Files), 2 = Cancel
-    const result = await dialog.showMessageBox(mainWindow, {
+    const focusedWindow = BrowserWindow.getFocusedWindow();
+    const result = await dialog.showMessageBox(focusedWindow, {
         type: 'warning',
-        buttons: ['Yes, delete files', 'No, keep files', 'Cancel'],
-        defaultId: 2,
-        cancelId: 2,
-        title: 'Delete Torrent?',
-        message: 'Delete also the downloaded files?',
-        detail: 'This action cannot be undone if you choose to delete files.'
+        buttons: ['Delete', 'Cancel'],
+        defaultId: 0,
+        cancelId: 1,
+        title: 'Remove Torrent',
+        message: 'Are you sure you want to remove this torrent?',
+        checkboxLabel: 'Also delete downloaded files',
+        checkboxChecked: false
     });
-    return { response: result.response };
+    // response: 0 = Delete, 1 = Cancel
+    // checkboxChecked: true/false
+    return {
+        confirmed: result.response === 0,
+        deleteFiles: result.checkboxChecked
+    };
 });
 
 ipcMain.on('open-external', (event, url) => {
