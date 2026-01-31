@@ -44,11 +44,6 @@ class TorrentManager:
         self.seed_ratio = 1.0
         self.seeding_enabled = True
         
-        # Apply initial settings
-        settings = lt.settings_pack()
-        settings.set_int(lt.settings_pack.share_ratio_limit, 100) # Default 1.0
-        self.ses.apply_settings(settings)
-        
         print(f"Torrent Manager initialized. Downloads directory: {self.download_dir}", file=sys.stderr)
 
     def update_settings(self, settings):
@@ -75,17 +70,8 @@ class TorrentManager:
         if 'seeding_enabled' in settings:
             self.seeding_enabled = bool(settings['seeding_enabled'])
 
-        # Apply to libtorrent
-        pack = lt.settings_pack()
-        if not self.seeding_enabled:
-             # Stop immediately after download
-             pack.set_int(lt.settings_pack.share_ratio_limit, 0)
-        else:
-             # Ratio is percentage integer in libtorrent (e.g., 2.0 -> 200)
-             ratio_int = int(self.seed_ratio * 100)
-             pack.set_int(lt.settings_pack.share_ratio_limit, ratio_int)
-             
-        self.ses.apply_settings(pack)
+        # NOTE: Since libtorrent settings_pack is unavailable in this version,
+        # we enforce these settings manually in the get_all_status loop.
         return True
 
     def get_config(self):
@@ -187,10 +173,22 @@ class TorrentManager:
                 elif str(s.state) == 'seeding':
                     state_str = "Seeding"
                     
-                    # Enforce "No Seeding" policy if disabled
+                    # Manual Seeding Logic
                     if not self.seeding_enabled:
+                         # Stop immediately
                          handle.pause()
                          state_str = "Finished"
+                    else:
+                         # Calculate Ratio to Check Limit
+                         downloaded = s.total_done
+                         uploaded = s.total_upload
+                         current_ratio = 0.0
+                         if downloaded > 0:
+                             current_ratio = uploaded / downloaded
+                         
+                         if current_ratio >= self.seed_ratio:
+                             handle.pause()
+                             state_str = "Finished"
 
                 try:
                     if s.has_metadata and s.progress > 0:
