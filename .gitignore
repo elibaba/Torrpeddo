@@ -4,3 +4,8 @@ __pycache__/
 node_modules/
 .venv/
 venv/
+
+# PDF Generation intermediate files
+backend/generate_pdf.py
+project_book_content.md
+torrpeddo_architecture_diagram.png
