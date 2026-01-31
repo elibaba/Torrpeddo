@@ -208,6 +208,7 @@ class TorrentManager:
         """Pauses a specific torrent."""
         if info_hash in self.downloads:
             handle = self.downloads[info_hash]
+            handle.unset_flags(lt.torrent_flags.auto_managed)
             handle.pause()
             return True
         return False
@@ -216,6 +217,7 @@ class TorrentManager:
         """Resumes a specific torrent."""
         if info_hash in self.downloads:
             handle = self.downloads[info_hash]
+            handle.set_flags(lt.torrent_flags.auto_managed)
             handle.resume()
             return True
         return False
