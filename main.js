@@ -100,7 +100,7 @@ ipcMain.on('to-python', (event, args) => {
  * for better reliability across different Linux environments.
  */
 ipcMain.handle('select-dir', async () => {
-    const result = await dialog.showOpenDialog(mainWindow, {
+    const result = await dialog.showOpenDialog({
         properties: ['openDirectory']
     });
     if (result.canceled) return { cancelled: true };
@@ -108,7 +108,7 @@ ipcMain.handle('select-dir', async () => {
 });
 
 ipcMain.handle('select-torrent', async () => {
-    const result = await dialog.showOpenDialog(mainWindow, {
+    const result = await dialog.showOpenDialog({
         properties: ['openFile'],
         filters: [{ name: 'Torrents', extensions: ['torrent'] }]
     });
