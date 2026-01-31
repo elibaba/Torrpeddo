@@ -138,10 +138,12 @@ class TorrentManager:
         """
         status_list = []
         
-        print(f"DEBUG: get_all_status called. Active: {len(self.downloads)}, Cancelled: {len(self.cancelled)}", file=sys.stderr)
-        
         # Snapshot keys to avoid runtime modification issues during iteration
-        for info_hash in list(self.downloads.keys()):
+        with self._lock:
+            active_hashes = list(self.downloads.keys())
+            cancelled_items = list(self.cancelled.items())
+        
+        for info_hash in active_hashes:
             try:
                 handle = self.downloads.get(info_hash)
                 if not handle:
@@ -150,8 +152,6 @@ class TorrentManager:
                 s = handle.status()
                 state_str = str(s.state)
                 is_paused = s.paused
-                print(f"DEBUG: Torrent {s.name} - Paused: {is_paused}, State: {state_str}, Hash: {info_hash}", file=sys.stderr)
-                
                 
                 if is_paused and state_str != "checking_resume_data":
                     state_str = "Paused"
@@ -166,30 +166,28 @@ class TorrentManager:
                     pass
 
                 status_list.append({
-                    'name': s.name,
+                    'name': s.name if s.has_metadata else 'Fetching metadata...',
                     'progress': s.progress * 100,
-                    'download_rate': s.download_rate / 1000,
-                    'upload_rate': s.upload_rate / 1000,
-                    'num_peers': s.num_peers,
+                    'download_rate': float(s.download_rate / 1000),
+                    'upload_rate': float(s.upload_rate / 1000),
+                    'num_peers': int(s.num_peers),
                     'state': state_str,
                     'info_hash': info_hash,
-                    'is_seeding': s.is_seeding,
-                    'is_paused': is_paused,
+                    'is_seeding': bool(s.is_seeding),
+                    'is_paused': bool(is_paused),
                     'is_cancelled': False
                 })
             except Exception as e:
-                # Log error but don't crash status loop
                 print(f"Error getting status for {info_hash}: {e}", file=sys.stderr)
-
                 pass
 
         # Add cancelled torrents for UI visibility
-        for info_hash, data in self.cancelled.items():
+        for info_hash, data in cancelled_items:
             status_list.append({
                 'name': data['name'],
                 'progress': 0,
-                'download_rate': 0,
-                'upload_rate': 0,
+                'download_rate': 0.0,
+                'upload_rate': 0.0,
                 'num_peers': 0,
                 'state': 'Cancelled',
                 'info_hash': info_hash,

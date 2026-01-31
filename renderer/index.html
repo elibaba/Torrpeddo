@@ -85,9 +85,8 @@
         }
 
         function renderTorrents(allTorrents) {
-            console.log(">>> [Renderer] renderTorrents received:", JSON.stringify(allTorrents));
             const container = document.getElementById('torrent-container');
-            if (!allTorrents || allTorrents.length === 0) {
+            if (!allTorrents || !Array.isArray(allTorrents) || allTorrents.length === 0) {
                 container.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 2rem;">No downloads</div>';
                 return;
             }
@@ -188,11 +187,10 @@
         }
 
         async function handleDelete(infoHash) {
-            console.log(">> [Renderer] handleDelete for:", infoHash);
             try {
                 const result = await window.electronAPI.invoke('show-delete-dialog');
-                console.log(">> [Renderer] Dialog result:", result);
                 if (result.response === 0) {
+                    // Yes (Delete Files)
                     const delRes = await sendCommand('delete_torrent_and_files', { info_hash: infoHash });
                     if (delRes && delRes.success) {
                         showToast('Torrent and files deleted', 'success');
@@ -201,9 +199,16 @@
                         showToast('Failed to delete files', 'error');
                     }
                 } else if (result.response === 1) {
-                    await sendCommand('remove_torrent', { info_hash: infoHash });
-                    fetchStatus();
-                    showToast('Torrent removed (files kept)', 'info');
+                    // No (Keep Files)
+                    const delRes = await sendCommand('cancel_torrent', { info_hash: infoHash });
+                    if (delRes && delRes.success) {
+                        showToast('Torrent stopped (files kept)', 'info');
+                        fetchStatus();
+                    } else {
+                        await sendCommand('remove_torrent', { info_hash: infoHash });
+                        fetchStatus();
+                        showToast('Torrent removed', 'info');
+                    }
                 }
             } catch (err) {
                 console.error(err);
@@ -227,10 +232,8 @@
 
         async function changeDir() {
             showToast('Opening folder selector...', 'info');
-            console.log(">> [Renderer] Calling select-dir IPC...");
             try {
                 const dirData = await window.electronAPI.invoke('select-dir');
-                console.log(">> [Renderer] IPC Result:", dirData);
                 if (dirData && dirData.error) {
                     alert("IPC Error: " + dirData.error);
                     return;
