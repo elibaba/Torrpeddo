@@ -6,6 +6,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Torrpeddo | Premium Torrent Client</title>
     <link rel="stylesheet" href="static/css/styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
 </head>
 
 <body>
@@ -13,9 +16,8 @@
         <header>
             <div class="logo-area">
                 <h1>Torrpeddo</h1>
-                <a href="#" class="browse-link"
-                    onclick="window.electronAPI.send('open-external', 'https://webtorrent.io/free-torrents')">Browse Free Torrents →</a>
-                </div>
+                <a href="#" class="browse-link" onclick="window.electronAPI.send('open-external', 'https://webtorrent.io/free-torrents')">Browse Free Torrents →</a>
+            </div>
             <div id="connection-status" style="font-size: 0.75rem; color: var(--success);">● Connected</div>
         </header>
 
@@ -107,9 +109,9 @@
                         ${!t.is_cancelled ? `
                             ${t.is_paused
                                 ? `<button onclick="resumeTorrent('${t.info_hash}')" style="background: transparent; padding: 0; color: var(--text-main); font-size: 0.75rem; margin-right: 1rem;">Resume</button>`
-                                : `<button onclick="pauseTorrent('${t.info_hash}')" style="background: transparent; padding: 0; color                        0.75rem; margin-right: 1rem;">Pause</button>`
+                                : `<button onclick="pauseTorrent('${t.info_hash}')" style="background: transparent; padding: 0; color: var(--text-muted); font-size: 0.75rem; margin-right: 1rem;">Pause</button>`
                             }
-                            <button onclick="deleteTorrentAndFiles('${t.info_hash}')" style="background:                 #ef4444; font-size: 0.75rem; margin-right: 1rem;">Delete torrent and files</button>
+                            <button onclick="deleteTorrentAndFiles('${t.info_hash}')" style="background: transparent; padding: 0; color: #ef4444; font-size: 0.75rem; margin-right: 1rem;">Delete torrent and files</button>
                             <button onclick="cancelTorrent('${t.info_hash}')" style="background: transparent; padding: 0; color: #f97316; font-size: 0.75rem; margin-right: 1rem;">Stop</button>
                             ${t.is_seeding ? `<button onclick="openFolder('${t.info_hash}')" style="background: transparent; padding: 0; color: var(--success); font-size: 0.75rem; margin-right: 1rem;">Open Folder</button>` : ''}
                         ` : `
@@ -185,22 +187,25 @@
         }
 
         async function cancelTorrent(hash) {
-            if (confirm('Stop download a                    ancelled list?')) {
+            if (confirm('Stop download and move to cancelled list?')) {
                 try {
-                                           es = await send                        'ca                        rent', { info_hash: hash });
-                                    if (res && res.success) {
-                        showToas                                stopped', 'info                                                                    fetchStatus();
-                                                          } catch (err) {
+                    const res = await sendCommand('cancel_torrent', { info_hash: hash });
+                    if (res && res.success) {
+                        showToast('Download stopped', 'info');
+                        fetchStatus();
+                    }
+                } catch (err) {
                     console.error(err);
                 }
             }
         }
 
         async function deleteTorrentAndFiles(hash) {
-                                   NGER: This will PERMANENTL                                 ALL associated files from disk. Procee                                try {
-                                      =                        nd('delete_torre                            o_hash: hash });
-                            i                    s.                 {
-                                showToast('Torrent and files                     uccess');
+            if (confirm('DANGER: This will PERMANENTLY delete the torrent and ALL associated files from disk. Proceed?')) {
+                try {
+                    const res = await sendCommand('delete_torrent_and_files', { info_hash: hash });
+                    if (res && res.success) {
+                        showToast('Torrent and files deleted', 'success');
                         fetchStatus();
                     } else {
                         showToast('Failed to delete files', 'error');
@@ -301,6 +306,7 @@
             margin: 0;
             background: linear-gradient(to right, #38bdf8, #818cf8);
             -webkit-background-clip: text;
+            background-clip: text;
             -webkit-text-fill-color: transparent;
         }
 
