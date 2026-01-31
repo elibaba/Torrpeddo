@@ -91,7 +91,22 @@
                 return;
             }
 
-            container.innerHTML = torrents.map(t => `
+            const active = torrents                     !t.is_cancelled);
+            const cancelled = torrents.filter                    ancelled);
+
+            let html = '';
+
+                          tive.length > 0) {
+                html += '<div class="section-header">Active Tasks</div>';
+                html += active.m                        rrentIte                    ');                     }
+
+            if (cancelled.length > 0) {
+                              = '<div class="section-header" style="margin-top: 2.5rem;                    --text-muted);">                    story</div>';
+                                   celled.map(t => renderTorrentItem(t)).join('');
+                                   container.innerHTML = html;
+        }
+
+        function                    ntI                             return `
                 <div class="card torrent-item ${t.is_cancelled ? 'cancelled' : 'active'}">
                     <div class="torrent-header">
                         <div style="font-weight: 600;">${t.name || 'Fetching metadata...'}</div>
@@ -119,8 +134,7 @@
                             <button onclick="removeTorrent('${t.info_hash}')" style="background: transparent; padding: 0; color: var(--text-muted); font-size: 0.75rem;">Dismiss</button>
                         `}
                     </div>
-                </div>
-            `).join('');
+                </div>`;
         }
 
         async function addMagnet() {
@@ -477,6 +491,25 @@
         .browse-link:hover {
             color: var(--success);
             text-decoration: underline;
+        }
+
+        .section-header {
+            font-size: 0.85rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--accent);
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .section-header::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border);
         }
     </style>
 </body>
