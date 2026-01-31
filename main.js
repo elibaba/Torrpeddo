@@ -6,7 +6,7 @@
  * communication bridge between the renderer (UI) and the Python backend.
  */
 
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
 const { PythonShell } = require('python-shell');
 
@@ -114,6 +114,10 @@ ipcMain.handle('select-torrent', async () => {
     });
     if (result.canceled) return { cancelled: true };
     return { cancelled: false, path: result.filePaths[0] };
+});
+
+ipcMain.on('open-external', (event, url) => {
+    shell.openExternal(url);
 });
 
 /**

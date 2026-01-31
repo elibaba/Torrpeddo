@@ -14,7 +14,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
      */
     send: (channel, data) => {
         // Only allow strictly whitelisted channels for security
-        let validChannels = ['to-python'];
+        let validChannels = ['to-python', 'open-external'];
         if (validChannels.includes(channel)) {
             ipcRenderer.send(channel, data);
         }
