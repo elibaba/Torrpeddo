@@ -102,13 +102,14 @@
 
         function renderTorrentItem(t, isStopped) {
             let stateLabel = 'badge-downloading';
-            if (t.is_cancelled || t.is_paused) stateLabel = 'badge-cancelled';
+            if (t.is_cancelled) stateLabel = 'badge-cancelled';
+            else if (t.is_paused) stateLabel = 'badge-paused';
             else if (t.is_seeding) stateLabel = 'badge-seeding';
 
             const progressPercent = t.progress;
             
             return `
-                <div class="card torrent-item ${isStopped ? 'cancelled' : 'active'}">
+                <div class="card torrent-item ${isStopped ? 'stopped' : 'active'}">
                     <div class="torrent-header">
                         <div style="font-weight: 600;">${t.name || 'Fetching metadata...'}</div>
                         <div class="badge ${stateLabel}">${t.state}</div>
@@ -396,7 +397,8 @@
 
         .badge-downloading { background: rgba(56, 189, 248, 0.2); color: #38bdf8; }
         .badge-seeding { background: rgba(34, 197, 94, 0.2); color: #22c55e; }
-        .badge-cancelled { background: rgba(249, 115, 22, 0.2); color: #f97316; }
+        .badge-cancelled { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+        .badge-paused { background: rgba(249, 115, 22, 0.2); color: #f97316; }
 
         .progress-container {
             height: 8px;
@@ -455,7 +457,7 @@
         .toast.success { border-color: var(--success); }
         .toast.error { border-color: #ef4444; }
 
-        .torrent-item.cancelled {
+        .torrent-item.stopped {
             border-color: var(--border);
             opacity: 0.8;
             background: rgba(30, 41, 59, 0.4);
