@@ -135,13 +135,19 @@ class TorrentManager:
         Returns a list of dictionaries containing progress, rates, and states.
         """
         status_list = []
+        # Debug logging to stderr (visible in electron console)
+        # print(f"DEBUG: get_all_status called. Active: {len(self.downloads)}, Cancelled: {len(self.cancelled)}", file=sys.stderr)
+        
         for info_hash, handle in self.downloads.items():
-            s = handle.status()
-            
-            state_str = str(s.state)
-            is_paused = s.paused
-            if is_paused and state_str != "checking_resume_data":
-                state_str = "Paused"
+            try:
+                s = handle.status()
+                state_str = str(s.state)
+                is_paused = s.paused
+                
+                # print(f"DEBUG: Torrent {s.name} - Paused: {is_paused}, State: {state_str}", file=sys.stderr)
+
+                if is_paused and state_str != "checking_resume_data":
+                    state_str = "Paused"
 
             # Check if files still exist on disk
             try:

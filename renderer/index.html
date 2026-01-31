@@ -123,7 +123,7 @@
                         <div class="stat-item" style="margin-left: auto;">${progressPercent.toFixed(1)}%</div>
                         
                         ${!isStopped ? `
-                            <button onclick="pauseTorrent('${t.info_hash}')" style="background: transparent; padding: 0; color: #f97316; font-size: 0.75rem; margin-right: 1rem;">Stop</button>
+                            <button onclick="pauseTorrent('${t.info_hash}')" style="background: transparent; padding: 0; color: #f97316; font-size: 0.75rem; margin-right: 1rem;">Pause</button>
                             ${t.is_seeding ? `<button onclick="openFolder('${t.info_hash}')" style="background: transparent; padding: 0; color: var(--success); font-size: 0.75rem; margin-right: 1rem;">Open Folder</button>` : ''}
                         ` : `
                             ${!t.is_cancelled ? `<button onclick="resumeTorrent('${t.info_hash}')" style="background: transparent; padding: 0; color: var(--success); font-size: 0.75rem; margin-right: 1rem;">Resume</button>` : ''}

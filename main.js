@@ -100,20 +100,39 @@ ipcMain.on('to-python', (event, args) => {
  * for better reliability across different Linux environments.
  */
 ipcMain.handle('select-dir', async () => {
-    const result = await dialog.showOpenDialog({
-        properties: ['openDirectory']
-    });
-    if (result.canceled) return { cancelled: true };
-    return { cancelled: false, path: result.filePaths[0] };
+    console.log(">> [IPC] Handling 'select-dir'");
+    try {
+        const focusedWindow = BrowserWindow.getFocusedWindow();
+        const result = await dialog.showOpenDialog(focusedWindow, {
+            properties: ['openDirectory'],
+            title: 'Select Downloads Folder',
+            buttonLabel: 'Select Folder'
+        });
+        console.log(">> [IPC] result:", result);
+        if (result.canceled) return { cancelled: true };
+        return { cancelled: false, path: result.filePaths[0] };
+    } catch (err) {
+        console.error(">> [IPC] SELECT-DIR ERROR:", err);
+        return { cancelled: true, error: err.message };
+    }
 });
 
 ipcMain.handle('select-torrent', async () => {
-    const result = await dialog.showOpenDialog({
-        properties: ['openFile'],
-        filters: [{ name: 'Torrents', extensions: ['torrent'] }]
-    });
-    if (result.canceled) return { cancelled: true };
-    return { cancelled: false, path: result.filePaths[0] };
+    console.log(">> [IPC] Handling 'select-torrent'");
+    try {
+        const focusedWindow = BrowserWindow.getFocusedWindow();
+        const result = await dialog.showOpenDialog(focusedWindow, {
+            properties: ['openFile'],
+            filters: [{ name: 'Torrents', extensions: ['torrent'] }],
+            title: 'Select Torrent File'
+        });
+        console.log(">> [IPC] result:", result);
+        if (result.canceled) return { cancelled: true };
+        return { cancelled: false, path: result.filePaths[0] };
+    } catch (err) {
+        console.error(">> [IPC] SELECT-TORRENT ERROR:", err);
+        return { cancelled: true, error: err.message };
+    }
 });
 
 ipcMain.handle('show-delete-dialog', async () => {
