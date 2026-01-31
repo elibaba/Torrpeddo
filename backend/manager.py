@@ -265,17 +265,20 @@ class TorrentManager:
         return False, "Torrent hash not found"
 
     def pause_torrent(self, info_hash):
-        """Pauses a specific torrent."""
+        """Pauses a specific torrent by disabling auto-management and calling pause."""
         if info_hash in self.downloads:
             handle = self.downloads[info_hash]
+            # Ensure libtorrent doesn't auto-resume it
+            handle.unset_flags(lt.torrent_flags.auto_managed)
             handle.pause()
             return True
         return False
 
     def resume_torrent(self, info_hash):
-        """Resumes a specific torrent."""
+        """Resumes a specific torrent by re-enabling auto-management and calling resume."""
         if info_hash in self.downloads:
             handle = self.downloads[info_hash]
+            handle.set_flags(lt.torrent_flags.auto_managed)
             handle.resume()
             return True
         return False
